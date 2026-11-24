@@ -3,9 +3,9 @@
 A kinematics tutor that finds exactly where a learner is stuck, tutors that misconception
 Socratically, and proves learning with a fixed answer key.
 
-Status: **milestone 1 is incomplete.** The pack, scoring, database, phase machine, CSV log and the
-blueprint console components exist. There are no pages or API routes yet, so the app does not run
-end to end. Read [HANDOFF.md](HANDOFF.md) for exactly what is done, what is missing and the next steps.
+Status: **milestone 1 is code-complete but not yet run in a browser.** Setup, pre-test, post-test,
+fixed-key scoring, saving, results and CSV export are written. The AI diagnosis and tutoring come next
+(milestone 2). Read [HANDOFF.md](HANDOFF.md) for exactly what is done and what is next.
 
 ## Run it
 
@@ -15,8 +15,9 @@ cp .env.example .env   # optional for now: only the LLM steps need values
 npm run dev
 ```
 
-`npm run dev` starts, but every URL currently returns 404 because no page exists yet.
-There is no LLM call in this milestone, so an empty `.env` is fine.
+Open http://localhost:3000, start a session, take the pre-test, continue past the diagnosis
+placeholder, take the post-test, and download the CSV from the results page.
+Run `npm run pack:check` to validate the question pack.
 
 ## What is here
 
@@ -28,7 +29,11 @@ There is no LLM call in this milestone, so an empty `.env` is fine.
 - `lib/session.ts`: the five step phase machine.
 - `lib/db.ts`: SQLite tables and helpers (`better-sqlite3`).
 - `lib/csv.ts`: session log as CSV.
-- `app/globals.css` and `components/`: the blueprint console design system.
+- `lib/guess.ts`: marks an answer as a guess (the student said "I guessed", or answered in under 4 s).
+- `app/`: setup page, session pages (pre-test, diagnosis placeholder, post-test, results) and API routes
+  (`/api/sessions`, `/api/answers`, `/api/export`).
+- `app/globals.css` and `components/`: the blueprint console design system, `TestRunner` (test state,
+  timing, keyboard, saving) and `SetupForm`.
 
 ## Libraries and APIs
 

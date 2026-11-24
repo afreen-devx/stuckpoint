@@ -1009,6 +1009,79 @@ a {
   overflow-x: auto;
 }
 
+/* Links styled as buttons, and the results table ---------------------------- */
+
+a.btn-primary,
+a.btn-quiet {
+  text-decoration: none;
+}
+
+.result-flag {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--warn);
+  border-radius: 2px;
+  font-size: 14px;
+  color: var(--warn);
+}
+
+.result-flag.is-good {
+  border-color: var(--good);
+  color: var(--good);
+}
+
+.result-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+
+.result-table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.result-table th,
+.result-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.result-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.result-table th {
+  background: var(--well);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.result-table .mono {
+  color: var(--heading);
+}
+
+.flag {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.flag.good {
+  color: var(--good);
+}
+
+.flag.bad {
+  color: var(--bad);
+}
+
 /* Small screens ----------------------------------------------------------- */
 
 @media (max-width: 900px) {

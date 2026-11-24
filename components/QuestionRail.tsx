@@ -27,7 +27,8 @@ function Timer({ since }: { since: number }) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    const tick = () => setElapsed(Date.now() - since);
+    // since is 0 until the browser has set the start time.
+    const tick = () => setElapsed(since > 0 ? Date.now() - since : 0);
     tick();
     const id = setInterval(tick, 250);
     return () => clearInterval(id);

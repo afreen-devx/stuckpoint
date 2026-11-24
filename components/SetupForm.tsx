@@ -141,7 +141,8 @@ export default function SetupForm({ studyMode }: { studyMode: boolean }) {
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
           <span>
             I am 18 or over and agree to take part in this class study. Only my anonymous ID, answers,
-            one-line reasons and timings are recorded. I can stop at any time.
+            one-line reasons and timings are recorded. My reasons are sent to an external AI service to
+            find misconceptions, so I will not write my name or personal details in them. I can stop at any time.
           </span>
         </label>
       ) : null}

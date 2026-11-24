@@ -50,6 +50,15 @@ CREATE TABLE IF NOT EXISTS diagnoses (
   UNIQUE (session_id, code)
 );
 
+CREATE TABLE IF NOT EXISTS diagnosis_runs (
+  session_id  TEXT PRIMARY KEY,
+  study_group TEXT NOT NULL,
+  used_ai     INTEGER NOT NULL,
+  note        TEXT,
+  result_json TEXT NOT NULL,
+  created_at  TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS tutoring_events (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   session_id  TEXT NOT NULL,
@@ -246,4 +255,103 @@ export function getMasteryChecks(sessionId: string) {
     mastered: number;
     explanation: string | null;
   }[];
+}
+
+/** Record one LLM call: what it was for, how long it took, tokens, and whether it worked. */
+export function logLlmCall(input: {
+  sessionId: string;
+  studyGroup: StudyGroup | null;
+  purpose: string;
+  model: string;
+  latencyMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  ok: boolean;
+  errorCode: string | null;
+}): void {
+  getDb()
+    .prepare(
+      `INSERT INTO llm_calls
+         (session_id, study_group, purpose, model, latency_ms, input_tokens, output_tokens, ok, error_code, created_at)
+       VALUES (@sessionId, @studyGroup, @purpose, @model, @latencyMs, @inputTokens, @outputTokens, @ok, @errorCode, @createdAt)`,
+    )
+    .run({
+      sessionId: input.sessionId,
+      studyGroup: input.studyGroup,
+      purpose: input.purpose,
+      model: input.model,
+      latencyMs: input.latencyMs,
+      inputTokens: input.inputTokens,
+      outputTokens: input.outputTokens,
+      ok: input.ok ? 1 : 0,
+      errorCode: input.errorCode,
+      createdAt: now(),
+    });
+}
+
+export type DiagnosisRunRow = {
+  session_id: string;
+  used_ai: number;
+  note: string | null;
+  result_json: string;
+  created_at: string;
+};
+
+export function getDiagnosisRun(sessionId: string): DiagnosisRunRow | null {
+  const row = getDb().prepare("SELECT * FROM diagnosis_runs WHERE session_id = ?").get(sessionId) as unknown as
+    | DiagnosisRunRow
+    | undefined;
+  return row ?? null;
+}
+
+/**
+ * Store one session's diagnosis: the full result for the page, plus one row per
+ * misconception for the teacher view and the CSV log. Saving twice replaces the first.
+ */
+export function saveDiagnosisRun(input: {
+  sessionId: string;
+  studyGroup: StudyGroup;
+  usedAi: boolean;
+  note: string | null;
+  resultJson: string;
+  codes: { code: string; evidenceCount: number; status: string; evidenceJson: string }[];
+}): void {
+  const db = getDb();
+  const createdAt = now();
+  db.exec("BEGIN");
+  try {
+    db.prepare(
+      `INSERT INTO diagnosis_runs (session_id, study_group, used_ai, note, result_json, created_at)
+       VALUES (@sessionId, @studyGroup, @usedAi, @note, @resultJson, @createdAt)
+       ON CONFLICT (session_id) DO UPDATE SET
+         used_ai = excluded.used_ai, note = excluded.note, result_json = excluded.result_json, created_at = excluded.created_at`,
+    ).run({
+      sessionId: input.sessionId,
+      studyGroup: input.studyGroup,
+      usedAi: input.usedAi ? 1 : 0,
+      note: input.note,
+      resultJson: input.resultJson,
+      createdAt,
+    });
+    db.prepare("DELETE FROM diagnoses WHERE session_id = ?").run(input.sessionId);
+    const insert = db.prepare(
+      `INSERT INTO diagnoses (session_id, study_group, code, evidence_count, status, evidence_json, created_at)
+       VALUES (@sessionId, @studyGroup, @code, @evidenceCount, @status, @evidenceJson, @createdAt)`,
+    );
+    for (const row of input.codes) {
+      insert.run({
+        sessionId: input.sessionId,
+        studyGroup: input.studyGroup,
+        code: row.code,
+        evidenceCount: row.evidenceCount,
+        status: row.status,
+        evidenceJson: row.evidenceJson,
+        createdAt,
+      });
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
 }

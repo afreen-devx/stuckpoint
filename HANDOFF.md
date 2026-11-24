@@ -1,13 +1,43 @@
 # HANDOFF
 
-StuckPoint, end of milestone 1. Updated 24 Nov 2026.
-This file says what exists, what has been checked, and what to do next.
+StuckPoint, end of milestone 2 (AI diagnosis). Updated 24 Nov 2026.
 
-## Status in one line
+## Status
 
-Milestone 1 is **code-complete but has not been run in a browser yet**. It was type-checked against
-stand-in library types and the scoring logic was tested against the real pack, but `npm install`
-could not run where it was written. The first `npm run dev` on a real machine is the real test.
+- **Milestone 1 runs** on a real machine: setup, pre-test, post-test, results and CSV were clicked through
+  end to end on Windows with Node 26.
+- **Milestone 2 is code-complete and tested offline**, but has not yet been run against the real
+  AI service. It needs `LLM_API_KEY` in `.env` (Gemini's free tier works).
+
+## Milestone 2: AI diagnosis
+
+- `lib/llm.ts`: calls Google Gemini (default, free tier) or the Anthropic Messages API with `fetch`
+  (no SDK), reads only the final answer text (models may think first), reports rate limits clearly, parses JSON with one retry, times out after 90 s, and logs
+  every call to `llm_calls` (purpose, model, latency, tokens, error code).
+- `lib/prompts.ts`: the diagnosis prompt. Student reasons are wrapped in `<reason>` tags and treated as
+  data only.
+- `lib/diagnosis.ts`: the rules, pure and tested: +1 per tagged wrong answer, +1 per AI reading at
+  confidence 0.6 or more, guesses never count (student said so, under 4 s, or the AI says so), C0 slips
+  reported separately, found at 2+, possible at 1, tutor at most 3, foundations when the score is 3 or less.
+- `lib/run-diagnosis.ts`: runs once per session and stores the result in `diagnosis_runs` plus one row per
+  code in `diagnoses`. Without a key, or with no reasons written, it uses answer choices only and says so.
+  If the AI call fails, the fallback is shown but not stored, so a reload tries again.
+- Diagnosis page: found and possible misconceptions with their evidence, what is tutored now and later,
+  guesses and slips, a foundations notice, and a loading screen while the AI works.
+  Control-group sessions are diagnosed too (for the study data) but not shown the result.
+- Tests: `tests/diagnosis.test.ts` (run `npm test`).
+
+### Checked offline
+
+- 13 tests for scoring, the diagnosis rules and JSON parsing pass.
+- The AI client against a fake Anthropic server: URL, headers, body, thinking blocks skipped, error
+  messages, the JSON retry, and call logging.
+- Saving and replacing a stored diagnosis.
+
+### Not checked yet
+
+- A real call to Gemini or Claude with a real key, and the quality of the AI's readings of real student reasons.
+  Write the 100 labelled explanations for the evaluation script (milestone 5) to measure this.
 
 ## What works (written)
 
@@ -66,18 +96,14 @@ The project now needs Node 22.13 or newer.
 5. Try all correct, all wrong, and "I guessed" answers, and check the results table.
 6. Check at 400px wide on a phone.
 
-## Next steps, in order (milestone 2 onwards)
+## Next steps, in order (milestone 3 onwards)
 
-1. **Diagnosis** (`lib/diagnosis.ts`, pure, with tests): evidence +1 per tagged wrong option, +1 per
-   reason the LLM classifies at confidence 0.6 or more; skip guesses; C0 reported separately; found at
-   2 or more, possible at 1; tutor the top 3, list the rest. Falls back to tags only without an LLM.
-2. **LLM provider** (`lib/llm.ts`): one small interface (`complete`, `completeJSON`, `stream`) for
-   Anthropic, OpenAI or Google, configured by `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`. Log every call
-   to `llm_calls`.
-3. **Prompts** (`lib/prompts.ts`) for diagnosis, tutor, mastery generation, independent solver and
-   explain-back grading, as in the build prompt.
-4. **Tutor and mastery pages**, then foundations for scores of 3 or lower.
-5. **Teacher view**, **evaluation script** (`eval/`), **unit tests** (vitest).
+1. **Streaming tutor**: add `stream` to `lib/llm.ts`, a tutor prompt in `lib/prompts.ts`, an API route that
+   streams one reply, and `app/session/[id]/tutor` working through `tutorQueue`, saving to `tutoring_events`.
+2. **Mastery check**: two AI-written practice questions, checked by an independent solver call, plus an
+   explain-back graded by the AI; save to `mastery_checks`.
+3. **Foundations** segment for scores of 3 or lower, using the `foundations` block in the pack.
+4. **Teacher view**, **evaluation script** (`eval/`), more unit tests.
 
 ## File map
 

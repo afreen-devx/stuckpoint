@@ -3,9 +3,9 @@
 A kinematics tutor that finds exactly where a learner is stuck, tutors that misconception
 Socratically, and proves learning with a fixed answer key.
 
-Status: **milestone 1 is code-complete but not yet run in a browser.** Setup, pre-test, post-test,
-fixed-key scoring, saving, results and CSV export are written. The AI diagnosis and tutoring come next
-(milestone 2). Read [HANDOFF.md](HANDOFF.md) for exactly what is done and what is next.
+Status: **milestone 1 runs; milestone 2 (AI diagnosis) is written and tested offline.** Setup, pre-test,
+post-test, fixed-key scoring, results and CSV export work. The diagnosis reads students' reasons with Gemini or Claude
+when `LLM_API_KEY` is set, and falls back to answer choices only without it. Tutoring comes next. Read [HANDOFF.md](HANDOFF.md) for exactly what is done and what is next.
 
 ## Run it
 
@@ -31,6 +31,8 @@ Run `npm run pack:check` to validate the question pack.
 - `lib/session.ts`: the five step phase machine.
 - `lib/db.ts`: SQLite tables and helpers, using Node's built-in `node:sqlite` (nothing to compile).
 - `lib/csv.ts`: session log as CSV.
+- `lib/llm.ts`, `lib/prompts.ts`: the AI client (Gemini or Claude) and every prompt.
+- `lib/diagnosis.ts`, `lib/run-diagnosis.ts`: the diagnosis rules (tested in `tests/`) and running them once per session.
 - `lib/guess.ts`: marks an answer as a guess (the student said "I guessed", or answered in under 4 s).
 - `app/`: setup page, session pages (pre-test, diagnosis placeholder, post-test, results) and API routes
   (`/api/sessions`, `/api/answers`, `/api/export`).
@@ -45,8 +47,9 @@ Run `npm run pack:check` to validate the question pack.
 - next/font: Geist, Geist Mono, Noto Sans Telugu (downloaded at build time)
 - vitest (dev dependency, no tests written yet)
 
-No LLM provider is wired yet. `LLM_PROVIDER`, `LLM_MODEL` and `LLM_API_KEY` are documented in
-`.env.example` and will be read on the server only.
+- Google Gemini API (free tier, default) or Anthropic Messages API (Claude), called with `fetch` from the
+  server only. Set `LLM_PROVIDER` (`google` or `anthropic`), `LLM_MODEL` and `LLM_API_KEY` in `.env`.
+  On Gemini's free tier, Google says content may be used to improve its products; reasons contain no names.
 
 ## Data
 

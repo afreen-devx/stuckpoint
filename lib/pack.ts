@@ -79,9 +79,11 @@ export type ValidationResult = {
 };
 
 export class PackError extends Error {
-  constructor(public problems: string[]) {
+  problems: string[];
+  constructor(problems: string[]) {
     super(`Topic pack is invalid. Fix these problems:\n${problems.join("\n")}`);
     this.name = "PackError";
+    this.problems = problems;
   }
 }
 

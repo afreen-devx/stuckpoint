@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  // better-sqlite3 is a native module, so it must be loaded by Node, not bundled.
-  serverExternalPackages: ["better-sqlite3"],
-};
+// The database is Node's built-in SQLite (node:sqlite), so no native package needs special handling.
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

@@ -9,6 +9,8 @@ fixed-key scoring, saving, results and CSV export are written. The AI diagnosis 
 
 ## Run it
 
+Needs Node.js 22.13 or newer (check with `node -v`).
+
 ```bash
 npm install
 cp .env.example .env   # optional for now: only the LLM steps need values
@@ -27,7 +29,7 @@ Run `npm run pack:check` to validate the question pack.
 - `lib/pack.ts`: zod schema plus a validator that fails loudly on a broken pack.
 - `lib/scoring.ts`: scoring against the pack's fixed answer key only. No AI grading, ever.
 - `lib/session.ts`: the five step phase machine.
-- `lib/db.ts`: SQLite tables and helpers (`better-sqlite3`).
+- `lib/db.ts`: SQLite tables and helpers, using Node's built-in `node:sqlite` (nothing to compile).
 - `lib/csv.ts`: session log as CSV.
 - `lib/guess.ts`: marks an answer as a guess (the student said "I guessed", or answered in under 4 s).
 - `app/`: setup page, session pages (pre-test, diagnosis placeholder, post-test, results) and API routes
@@ -38,7 +40,7 @@ Run `npm run pack:check` to validate the question pack.
 ## Libraries and APIs
 
 - Next.js 16 (App Router), React 19, TypeScript
-- better-sqlite3 (SQLite, server only)
+- node:sqlite, Node's built-in SQLite (server only). Requires Node 22.13 or newer.
 - zod (pack and later LLM JSON validation)
 - next/font: Geist, Geist Mono, Noto Sans Telugu (downloaded at build time)
 - vitest (dev dependency, no tests written yet)

@@ -36,6 +36,8 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
   const codes = Object.keys(pack.misconceptions).filter((code) => before.has(code) || after.has(code));
   const slips = [...pre, ...post].filter((a) => a.correct === 0 && a.option_tag === "C0").length;
   const mastery = postScore >= 8;
+  const preGuesses = pre.filter((a) => a.guess === 1).length;
+  const postGuesses = post.filter((a) => a.guess === 1).length;
 
   return (
     <Panel>
@@ -101,6 +103,13 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           <p className="hint">
             {slips} wrong {slips === 1 ? "answer was a calculation slip" : "answers were calculation slips"}, not a
             misconception.
+          </p>
+        ) : null}
+        {preGuesses + postGuesses > 0 ? (
+          <p className="hint">
+            Not counted as evidence: {preGuesses} pre-test and {postGuesses} post-test{" "}
+            {preGuesses + postGuesses === 1 ? "answer" : "answers"} given in under 4 seconds or marked as a guess.
+            They still count towards the scores.
           </p>
         ) : null}
         <p className="hint">

@@ -72,7 +72,7 @@ export function buildSessionLog(sessionId: string): Record<string, unknown>[] {
       option_tag: answer.option_tag,
       reason: "",
       time_ms: answer.time_ms,
-      guess: 0,
+      guess: answer.guess,
     });
   }
   for (const diagnosis of getDiagnoses(sessionId)) {

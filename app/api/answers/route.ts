@@ -54,7 +54,9 @@ export async function POST(request: Request) {
     optionTag,
     reason,
     timeMs,
-    guess: phase === "pretest" ? isGuess(reason, timeMs) : false,
+    // Same rule on both tests, so the before and after comparison is fair.
+    // The post-test has no reasons, so only the time part applies there.
+    guess: isGuess(reason, timeMs),
   });
 
   return NextResponse.json({ ok: true });

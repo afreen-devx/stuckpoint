@@ -1,10 +1,12 @@
-import Database from "better-sqlite3";
+import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import type { Language, Phase, StudyGroup, TestPhase } from "./types";
 
 /**
  * One small SQLite file, one schema, and a handful of prepared statements.
+ * Uses Node's built-in SQLite (node:sqlite, Node 22.13 or newer), so nothing has to be
+ * compiled on install. That keeps setup to "npm install" on Windows, Mac and Linux.
  * Every row that belongs to a session also stores the study group, as required
  * for the study mode comparison.
  */
@@ -87,17 +89,17 @@ CREATE TABLE IF NOT EXISTS llm_calls (
 );
 `;
 
-let db: Database.Database | null = null;
+let db: DatabaseSync | null = null;
 
-export function getDb(): Database.Database {
+export function getDb(): DatabaseSync {
   if (db) return db;
 
   const file = process.env.DB_PATH ?? path.join(process.cwd(), "data", "stuckpoint.db");
   const absolute = path.isAbsolute(file) ? file : path.join(process.cwd(), file);
   mkdirSync(path.dirname(absolute), { recursive: true });
 
-  db = new Database(absolute);
-  db.pragma("journal_mode = WAL");
+  db = new DatabaseSync(absolute);
+  db.exec("PRAGMA journal_mode = WAL");
   db.exec(SCHEMA);
   return db;
 }
@@ -155,7 +157,7 @@ export function createSession(input: {
 }
 
 export function getSession(id: string): SessionRow | null {
-  const row = getDb().prepare("SELECT * FROM sessions WHERE id = ?").get(id) as SessionRow | undefined;
+  const row = getDb().prepare("SELECT * FROM sessions WHERE id = ?").get(id) as unknown as SessionRow | undefined;
   return row ?? null;
 }
 
@@ -208,13 +210,13 @@ export function saveAnswer(input: {
 export function getAnswers(sessionId: string, phase: TestPhase): AnswerRow[] {
   return getDb()
     .prepare("SELECT * FROM answers WHERE session_id = ? AND phase = ? ORDER BY id")
-    .all(sessionId, phase) as AnswerRow[];
+    .all(sessionId, phase) as unknown as AnswerRow[];
 }
 
 export function getDiagnoses(sessionId: string) {
   return getDb()
     .prepare("SELECT * FROM diagnoses WHERE session_id = ? ORDER BY evidence_count DESC")
-    .all(sessionId) as {
+    .all(sessionId) as unknown as {
     code: string;
     evidence_count: number;
     status: string;
@@ -225,7 +227,7 @@ export function getDiagnoses(sessionId: string) {
 export function getTutoringEvents(sessionId: string) {
   return getDb()
     .prepare("SELECT * FROM tutoring_events WHERE session_id = ? ORDER BY id")
-    .all(sessionId) as {
+    .all(sessionId) as unknown as {
     code: string;
     role: string;
     message: string;
@@ -236,7 +238,7 @@ export function getTutoringEvents(sessionId: string) {
 export function getMasteryChecks(sessionId: string) {
   return getDb()
     .prepare("SELECT * FROM mastery_checks WHERE session_id = ? ORDER BY id")
-    .all(sessionId) as {
+    .all(sessionId) as unknown as {
     code: string;
     q1_correct: number;
     q2_correct: number;

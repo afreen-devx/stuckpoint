@@ -38,11 +38,18 @@ could not run where it was written. The first `npm run dev` on a real machine is
 - **Pack check** (`npm run pack:check`, `scripts/check-pack.ts`): validates the pack and lists problems.
 - **Error and 404 pages**.
 
+## Database change
+
+`better-sqlite3` was replaced by Node's built-in `node:sqlite` because it needed Visual Studio build tools
+to compile on Windows with Node 26. `lib/db.ts` keeps the same functions, so nothing else changed.
+The project now needs Node 22.13 or newer.
+
 ## Checked
 
 - Type-check of all app code passes (with stand-in types for React, Next.js, zod and SQLite).
 - Scoring: all 20 answer keys and all 80 option tags match the reviewed bank.
 - Guess rule: "I guessed" in any case, answers under 4 s, and edge cases.
+- Database (`lib/db.ts` on node:sqlite): sessions, phase changes, saving and replacing answers, reads.
 
 ## Not checked yet
 

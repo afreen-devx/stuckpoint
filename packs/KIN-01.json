@@ -1,0 +1,117 @@
+{
+  "id": "KIN-01",
+  "title": "Kinematics",
+  "conventions": "g = 10 m/s^2, no air resistance",
+  "misconceptions": {
+    "M1": {"name": "Zero velocity, zero acceleration", "belief": "If it stops for an instant, nothing is accelerating it.", "truth": "Acceleration can be non-zero while velocity is zero, as at the top of a vertical throw."},
+    "M2": {"name": "Sign means slowing", "belief": "Negative acceleration always means slowing down.", "truth": "Speeding up or slowing down depends on whether acceleration and velocity point the same way."},
+    "M3": {"name": "Acceleration follows motion", "belief": "Acceleration always points the way the object moves.", "truth": "Acceleration points the way velocity is changing; gravity always points down."},
+    "M4": {"name": "Graph as picture", "belief": "A graph shows the path or hill the object travels on.", "truth": "A graph shows how one quantity changes with time."},
+    "M5": {"name": "Wrong graph feature", "belief": "Reads height when slope or area is needed, or reads a v-t graph as x-t.", "truth": "Slope of x-t is velocity, slope of v-t is acceleration, area under v-t is displacement."},
+    "M6": {"name": "Distance equals displacement", "belief": "Distance and displacement, or speed and velocity, are the same.", "truth": "Displacement and velocity depend on direction and on the start-to-end change."},
+    "M7": {"name": "Average of speeds", "belief": "Average speed is the mean of the two speeds.", "truth": "Average speed = total distance / total time; a simple mean works only when the times are equal."},
+    "M8": {"name": "Heavier falls faster", "belief": "Heavier objects fall faster when there is no air resistance.", "truth": "Without air resistance, all objects fall with the same acceleration."},
+    "M9": {"name": "Horizontal speed changes fall time", "belief": "A faster horizontal launch takes longer or shorter to land.", "truth": "Horizontal and vertical motion are independent; fall time depends only on height."},
+    "M10": {"name": "Stopped at the top", "belief": "A projectile's velocity is zero at its highest point.", "truth": "Only the vertical component is zero; the horizontal component remains."}
+  },
+  "graphs": {
+    "q5":  {"xLabel": "t (s)", "yLabel": "x (m)",   "xMax": 8, "yMax": 40,  "lines": [{"points": [[0,5],[8,37]]}]},
+    "q6":  {"xLabel": "t (s)", "yLabel": "x (m)",   "xMax": 6, "yMax": 100, "lines": [{"points": [[0,60],[6,90]], "label": "P"}, {"points": [[0,0],[6,80]], "label": "Q"}], "marker": {"x": 4, "label": "t = 4 s"}},
+    "q7":  {"xLabel": "t (s)", "yLabel": "v (m/s)", "xMax": 6, "yMax": 10,  "lines": [{"points": [[0,2],[6,8]], "label": "1"}, {"points": [[0,8],[6,2]], "label": "2"}], "marker": {"x": 3, "label": "t = 3 s"}},
+    "q8":  {"xLabel": "t (s)", "yLabel": "v (m/s)", "xMax": 6, "yMax": 6,   "lines": [{"points": [[0,4],[5,4]]}]},
+    "q19": {"xLabel": "t (s)", "yLabel": "v (m/s)", "xMax": 5, "yMax": 25,  "lines": [{"points": [[0,20],[4,0]]}]}
+  },
+  "questions": {
+    "Q1":  {"stem": "A ball is thrown straight up. At its highest point, its acceleration is:", "options": ["Zero", "10 m/s² downward", "10 m/s² upward", "Zero for an instant, then 10 m/s² downward"], "tags": ["M1", null, "M3", "M1"]},
+    "Q2":  {"stem": "While a ball thrown upward is still rising, its acceleration points:", "options": ["Upward, because it is moving up", "Downward", "Nowhere; it is zero until the ball stops", "Upward at first, then downward"], "tags": ["M3", null, "M1", "M3"]},
+    "Q3":  {"stem": "A car is moving in the negative x direction with an acceleration of -2 m/s². Its speed is:", "options": ["Decreasing, because the acceleration is negative", "Increasing", "Constant, because the two negatives cancel", "Impossible to tell without its exact velocity"], "tags": ["M2", null, "M2", "M2"]},
+    "Q4":  {"stem": "A car moving in the positive x direction is slowing down. Its acceleration is:", "options": ["Positive, because it is moving forward", "Negative", "Zero, because acceleration means speeding up", "Negative only if the car is moving backwards"], "tags": ["M3", null, "M2", "M2"]},
+    "Q5":  {"stem": "This position-time graph is a straight line sloping upward. The object is:", "options": ["Moving up a slope or hill", "Moving at constant velocity", "Speeding up, because its position keeps increasing", "At rest, because the line is straight"], "tags": ["M4", null, "M5", "M4"], "graph": "q5"},
+    "Q6":  {"stem": "On this position-time graph, at t = 4 s, P's line is higher but Q's line is steeper. Which is moving faster at t = 4 s?", "options": ["P, because its line is higher", "Q, because its line is steeper", "Both, because they are at the same time", "Can't tell without seeing the path each one took"], "tags": ["M5", null, "M5", "M4"], "graph": "q6"},
+    "Q7":  {"stem": "On this velocity-time graph, lines 1 and 2 cross at t = 3 s. At that instant, the two objects have:", "options": ["The same position", "The same velocity", "The same acceleration", "Collided"], "tags": ["M5", null, "M5", "M4"], "graph": "q7"},
+    "Q8":  {"stem": "This velocity-time graph shows an object moving at a steady 4 m/s for 5 s. Its displacement is:", "options": ["4 m", "20 m", "0.8 m", "9 m"], "tags": ["M5", null, "C0", "C0"], "graph": "q8"},
+    "Q9":  {"stem": "A runner completes one 400 m lap of a track and finishes at the starting point after 80 s. Their average velocity is:", "options": ["5 m/s", "0 m/s", "400 m", "Impossible to find, because the path is curved"], "tags": ["M6", null, "C0", "M6"]},
+    "Q10": {"stem": "You walk 3 m east and then 4 m north. Your distance travelled and displacement are:", "options": ["Both 7 m", "Distance 7 m, displacement 5 m", "Both 5 m", "Distance 5 m, displacement 7 m"], "tags": ["M6", null, "M6", "M6"]},
+    "Q11": {"stem": "A car travels 60 km at 30 km/h and then another 60 km at 60 km/h. Its average speed for the whole trip is:", "options": ["45 km/h", "40 km/h", "50 km/h", "90 km/h"], "tags": ["M7", null, "C0", "C0"]},
+    "Q12": {"stem": "A cyclist rides for 1 hour at 10 km/h and then for 1 hour at 20 km/h in the same direction. Their average speed is:", "options": ["15 km/h", "13.3 km/h", "30 km/h", "20 km/h"], "tags": [null, "M7", "C0", "C0"]},
+    "Q13": {"stem": "A 5 kg ball and a 1 kg ball are dropped together from the same height. Which lands first?", "options": ["The 5 kg ball", "Both land at the same time", "The 1 kg ball", "The 5 kg ball, in half the time"], "tags": ["M8", null, "M8", "M8"]},
+    "Q14": {"stem": "A feather and a coin are dropped together inside a vacuum tube. What happens?", "options": ["The coin lands first", "They land together", "The feather lands first", "Neither falls, because there is no air to push them down"], "tags": ["M8", null, "M8", "M8"]},
+    "Q15": {"stem": "From the same table height, ball X rolls off the edge at 2 m/s while ball Y is dropped straight down at the same moment. Which hits the floor first?", "options": ["Y, because it falls straight down", "X, because it is already moving", "Both at the same time", "It depends on how long the table is"], "tags": ["M9", "M9", null, "M9"]},
+    "Q16": {"stem": "A bullet is fired horizontally from a height of 5 m. How long does it take to hit the ground?", "options": ["1 s", "It depends on the bullet's speed", "0.5 s", "2 s"], "tags": [null, "M9", "C0", "C0"]},
+    "Q17": {"stem": "A football is kicked at an angle to the ground. At its highest point, its velocity is:", "options": ["Zero", "Horizontal and not zero", "Vertically upward", "Vertically downward"], "tags": ["M10", null, "M3", "M3"]},
+    "Q18": {"stem": "At that same highest point, the football's acceleration is:", "options": ["Zero", "10 m/s² downward", "Horizontal, in the direction it is moving", "Zero, because its velocity is zero there"], "tags": ["M1", null, "M3", "M10"]},
+    "Q19": {"stem": "This velocity-time graph shows a car braking steadily from 20 m/s to rest in 4 s. How far does it travel while braking?", "options": ["80 m", "5 m", "20 m", "40 m"], "tags": ["M5", "M5", "M5", null], "graph": "q19"},
+    "Q20": {"stem": "A ball is thrown straight up at 20 m/s. What is its velocity 3 s later?", "options": ["10 m/s upward", "10 m/s downward", "Zero, because it is at the top", "50 m/s upward"], "tags": ["C0", null, "C0", "M3"]}
+  },
+  "sets": {
+    "A_pre":  ["Q1","Q3","Q5","Q7","Q9","Q11","Q13","Q15","Q17","Q19"],
+    "B_post": ["Q2","Q4","Q6","Q8","Q10","Q12","Q14","Q16","Q18","Q20"],
+    "C_retention": []
+  },
+  "foundations": {
+    "title": "Foundations: describing motion",
+    "intro": "Five ideas that almost every kinematics question depends on. Same conventions: g = 10 m/s^2 and no air resistance. This block is written and checked by the team, not by the model.",
+    "concepts": [
+      {
+        "id": "F1",
+        "name": "Position and axes",
+        "explain": "Position is where an object is, measured from a chosen zero point (the origin) along a direction we call positive. Without a zero and a positive direction, a position has no meaning.",
+        "example": "An auto-rickshaw 2 km east of the bus stand has position +2 km if east is positive, and -2 km if west is positive.",
+        "check": {
+          "stem": "A lift is 3 m above the ground floor. If the ground floor is zero and upward is positive, the lift's position is:",
+          "options": ["3 m", "-3 m", "0 m", "It cannot be stated without its speed"],
+          "answer": 0,
+          "why": "Position is measured from the chosen zero along the positive direction, so it is +3 m."
+        }
+      },
+      {
+        "id": "F2",
+        "name": "Distance and displacement",
+        "explain": "Distance is how much ground was covered and it never decreases. Displacement is the straight change from start to finish, so it can be zero even after a long walk.",
+        "example": "Walking 3 m east and then 4 m north is 7 m of distance but only 5 m of displacement.",
+        "check": {
+          "stem": "You walk 5 m east and then 5 m west. Your distance travelled and displacement are:",
+          "options": ["Distance 0 m, displacement 10 m", "Distance 10 m, displacement 0 m", "Both 10 m", "Both 0 m"],
+          "answer": 1,
+          "why": "You covered 10 m of ground, but you finished where you started, so the displacement is zero."
+        }
+      },
+      {
+        "id": "F3",
+        "name": "Speed and velocity",
+        "explain": "Speed tells how fast. Velocity tells how fast and in which direction. Average velocity is displacement divided by time, so a trip that ends where it started has zero average velocity.",
+        "example": "A runner who completes a 400 m lap in 80 s has an average speed of 5 m/s and an average velocity of 0 m/s.",
+        "check": {
+          "stem": "A car travels 60 km due east in 1 hour. Its average velocity is:",
+          "options": ["60 km/h", "60 km/h east", "0 km/h", "It cannot be found without the speed at each moment"],
+          "answer": 1,
+          "why": "Velocity needs a direction, so the answer is 60 km/h east."
+        }
+      },
+      {
+        "id": "F4",
+        "name": "Acceleration",
+        "explain": "Acceleration is how quickly velocity changes, not how fast the object moves. It points the way velocity is changing, so a ball rising into the air still accelerates downward.",
+        "example": "A bike braking from 10 m/s to rest in 2 s has an acceleration of -5 m/s^2 if forward is positive.",
+        "check": {
+          "stem": "A ball is thrown straight up. While it is still rising, its acceleration points:",
+          "options": ["Upward", "Downward", "Nowhere, because it is slowing down", "Upward first, then downward"],
+          "answer": 1,
+          "why": "Gravity is the only force acting, so the acceleration is 10 m/s^2 downward the whole time the ball is in the air."
+        }
+      },
+      {
+        "id": "F5",
+        "name": "Reading axes and graphs",
+        "explain": "Each axis states which quantity is plotted and its unit. On a position-time graph the slope is velocity; on a velocity-time graph the slope is acceleration and the area under the line is displacement.",
+        "example": "A flat line on a velocity-time graph means the velocity is constant, not that the object is at rest at the origin.",
+        "check": {
+          "stem": "On a velocity-time graph, the area under the line between two times gives:",
+          "options": ["Acceleration", "Displacement", "Position", "Speed"],
+          "answer": 1,
+          "why": "Velocity multiplied by time is displacement, and on a velocity-time graph that product is the area under the line."
+        }
+      }
+    ]
+  }
+}

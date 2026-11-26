@@ -20,15 +20,15 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   const { sessionId, code, action, note } = parsed.data;
 
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   if (!session) return NextResponse.json({ error: "That session does not exist." }, { status: 404 });
   if (session.phase !== "tutor") return NextResponse.json({ error: "Tutoring is finished. Refresh the page." }, { status: 409 });
 
-  const { current } = tutorPlan(session, loadPack());
+  const { current } = await tutorPlan(session, loadPack());
   if (!current || current.code !== code) {
     return NextResponse.json({ error: "That idea is not the current one. Refresh the page." }, { status: 409 });
   }
 
-  addTutoringEvent({ sessionId: session.id, studyGroup: session.study_group, code, role: action, message: note ?? "" });
+  await addTutoringEvent({ sessionId: session.id, studyGroup: session.study_group, code, role: action, message: note ?? "" });
   return NextResponse.json({ ok: true });
 }

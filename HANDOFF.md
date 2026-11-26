@@ -10,6 +10,25 @@ StuckPoint, milestone 3 (tutoring) and the Lab amber redesign. Updated 26 Nov 20
 - **New design ("Lab amber")** on every page: Anek type (one family for English, Telugu and Hindi),
   JetBrains Mono numbers, the motion lab, the misconception map, the big results score.
 
+## Harder questions (KIN-02)
+
+- Student feedback: questions were too basic and had too few numbers. `packs/KIN-02.json` replaces
+  KIN-01 as the default (`PACK_ID` in `.env` can switch back). Same 10 misconceptions, same diagnosis.
+- Answers are computed and checked by `scripts/generate-kin02.py`; see the README. No teacher review yet.
+- Sessions saved under KIN-01 show KIN-02 questions if reopened, because question ids are reused.
+  Start new sessions after switching.
+- The setup page motion lab now drops from 30 m, so it does not show the 20 m fall time asked in Q17.
+
+## Deployment (Vercel + Turso)
+
+- `lib/db.ts` now talks to **Turso** (hosted SQLite) when `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`
+  are set, and to the local file `data/stuckpoint.db` otherwise. A file on Vercel is temporary, so the
+  study must run on Turso. Every database function is now async.
+- The Turso client is `@libsql/client` (its web build: plain HTTPS, nothing native). Add it with
+  `npm install @libsql/client` so `package.json` and `package-lock.json` both list it.
+- `next.config.ts` ships `packs/` with every server function.
+- Step by step: `DEPLOY.md`.
+
 ## Milestone 3: tutoring
 
 - Flow: diagnosis → `/session/[id]/tutor` → post-test. The tutor works through the foundations review

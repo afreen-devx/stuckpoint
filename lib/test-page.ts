@@ -9,11 +9,11 @@ import type { TestPhase } from "./types";
  * Everything a test page needs, loaded on the server.
  * The answer key (tags) is deliberately left out of what goes to the browser.
  */
-export function loadTestPage(
+export async function loadTestPage(
   id: string,
   phase: TestPhase,
-): { session: SessionRow; questions: TestQuestion[]; initialAnswers: SavedAnswer[] } {
-  const session = getSession(id);
+): Promise<{ session: SessionRow; questions: TestQuestion[]; initialAnswers: SavedAnswer[] }> {
+  const session = await getSession(id);
   if (!session) notFound();
   // A student can only be on the step their session is on.
   if (session.phase !== phase) redirect(phaseHref(session.id, session.phase));
@@ -30,7 +30,7 @@ export function loadTestPage(
     };
   });
 
-  const initialAnswers: SavedAnswer[] = getAnswers(session.id, phase).map((a) => ({
+  const initialAnswers: SavedAnswer[] = (await getAnswers(session.id, phase)).map((a) => ({
     qid: a.qid,
     choice: a.choice,
     reason: a.reason ?? "",

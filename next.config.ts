@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
-// The database is Node's built-in SQLite (node:sqlite), so no native package needs special handling.
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  // The question pack is read from packs/ at run time, so make sure it is shipped with every
+  // server function when the app is deployed (on Vercel, for example).
+  outputFileTracingIncludes: {
+    "/": ["./packs/**/*"],
+    "/**": ["./packs/**/*"],
+  },
+};
 
 export default nextConfig;

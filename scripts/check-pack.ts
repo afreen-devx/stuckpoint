@@ -1,13 +1,13 @@
 /**
  * npm run pack:check
- * Validates packs/KIN-01.json and prints every error and warning.
+ * Validates packs/KIN-02.json (or the pack named on the command line) and prints every error and warning.
  * Exits with code 1 if the pack is invalid, so it can run in CI.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { validatePack } from "../lib/pack.ts";
 
-const packId = process.argv[2] ?? "KIN-01";
+const packId = process.argv[2] ?? "KIN-02";
 const file = path.join(process.cwd(), "packs", `${packId}.json`);
 const { pack, errors, warnings } = validatePack(JSON.parse(readFileSync(file, "utf8")));
 

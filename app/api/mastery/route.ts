@@ -7,6 +7,8 @@ import { explainGradePrompt, masteryQuestionsPrompt, solverPrompt } from "@/lib/
 import { postStems, tutorPlan } from "@/lib/tutor";
 
 export const runtime = "nodejs";
+// Leave room for a slow AI reply plus retries.
+export const maxDuration = 120;
 
 const Question = z.object({
   stem: z.string().min(10),
@@ -43,13 +45,13 @@ export async function POST(request: Request) {
   if (!make.success && !submit.success) return bad("Invalid request.");
   const { sessionId, code } = make.success ? make.data : submit.data!;
 
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   if (!session) return bad("That session does not exist.", 404);
   if (session.phase !== "tutor") return bad("Tutoring is finished. Refresh the page.", 409);
   if (!llmConfigured()) return bad("The AI is not set up, so the check cannot run.", 503);
 
   const pack = loadPack();
-  const { current } = tutorPlan(session, pack);
+  const { current } = await tutorPlan(session, pack);
   if (!current || current.code !== code) return bad("That idea is not the current one. Refresh the page.", 409);
   const ctx = { sessionId: session.id, studyGroup: session.study_group, purpose: "mastery" };
 
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
       const gen = masteryQuestionsPrompt(pack, code, postStems(pack));
       const written = await completeJSON<Question[]>(
         ctx,
-        { system: gen.system, messages: [{ role: "user", content: gen.user }] },
+        { system: gen.system, messages: [{ role: "user", content: gen.user }], thinking: "low" },
         z.array(Question).min(1).max(4),
       );
       const solve = solverPrompt(pack, written);
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
       );
       // Keep only questions the independent solver answered the same way.
       const kept = written.filter((q, i) => solved[i] === q.answer).slice(0, 2);
-      addTutoringEvent({
+      await addTutoringEvent({
         sessionId: session.id,
         studyGroup: session.study_group,
         code,
@@ -84,7 +86,7 @@ export async function POST(request: Request) {
 
     // Submit: score against the questions saved by the last "make".
     const data = submit.data!;
-    const last = [...getTutoringEvents(session.id)].reverse().find((e) => e.code === code && e.role === "check");
+    const last = [...(await getTutoringEvents(session.id))].reverse().find((e) => e.code === code && e.role === "check");
     if (!last) return bad("Start the check first.", 409);
     const kept = (JSON.parse(last.message) as { questions: Question[] }).questions;
     if (data.choices.length !== kept.length) return bad("Answer every question first.");
@@ -93,14 +95,14 @@ export async function POST(request: Request) {
     const grade = explainGradePrompt(pack, code, session.language, data.explanation);
     const verdict = await completeJSON<{ pass: boolean; feedback: string }>(
       { ...ctx, purpose: "mastery-explain" },
-      { system: grade.system, messages: [{ role: "user", content: grade.user }] },
+      { system: grade.system, messages: [{ role: "user", content: grade.user }], thinking: "low" },
       z.object({ pass: z.boolean(), feedback: z.string().default("") }),
     );
 
     const mastered = correct.every(Boolean) && verdict.pass;
     // -1 marks a question that was not asked because the solver disagreed with it.
     const flag = (i: number) => (i < correct.length ? (correct[i] ? 1 : 0) : -1);
-    saveMasteryCheck({
+    await saveMasteryCheck({
       sessionId: session.id,
       studyGroup: session.study_group,
       code,

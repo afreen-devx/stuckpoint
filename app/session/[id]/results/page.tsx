@@ -25,13 +25,13 @@ function codesShown(answers: AnswerRow[]): Map<string, string[]> {
 
 export default async function ResultsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = getSession(id);
+  const session = await getSession(id);
   if (!session) notFound();
   if (session.phase !== "results") redirect(phaseHref(session.id, session.phase));
 
   const pack = loadPack();
-  const pre = getAnswers(session.id, "pretest");
-  const post = getAnswers(session.id, "posttest");
+  const pre = await getAnswers(session.id, "pretest");
+  const post = await getAnswers(session.id, "posttest");
   const preScore = countCorrect(pre);
   const postScore = countCorrect(post);
   const before = codesShown(pre);

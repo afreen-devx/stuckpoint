@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   }
   const studyGroup: StudyGroup = studyMode ? (Math.random() < 0.5 ? "stuckpoint" : "control") : "stuckpoint";
 
-  const session = createSession({
+  const session = await createSession({
     studentId: parsed.data.studentId,
     classCode: parsed.data.classCode,
     language: parsed.data.language,
@@ -54,7 +54,7 @@ export async function PATCH(request: Request) {
   const parsed = MoveBody.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return bad("Invalid request.");
 
-  const session = getSession(parsed.data.id);
+  const session = await getSession(parsed.data.id);
   if (!session) return bad("That session does not exist.", 404);
 
   const to = parsed.data.phase;
@@ -68,7 +68,7 @@ export async function PATCH(request: Request) {
     const pack = loadPack();
     const set = session.phase === "pretest" ? pack.sets.A_pre : pack.sets.B_post;
     const answered = new Set(
-      getAnswers(session.id, session.phase)
+      (await getAnswers(session.id, session.phase))
         .filter((a) => a.choice !== null)
         .map((a) => a.qid),
     );
@@ -78,6 +78,6 @@ export async function PATCH(request: Request) {
     }
   }
 
-  setPhase(session.id, to);
+  await setPhase(session.id, to);
   return NextResponse.json({ ok: true });
 }

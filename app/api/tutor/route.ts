@@ -7,6 +7,8 @@ import { tutorOpening, tutorSystemPrompt, wrapStudent } from "@/lib/prompts";
 import { conversation, evidenceFor, FOUNDATIONS, postStems, tutorPlan } from "@/lib/tutor";
 
 export const runtime = "nodejs";
+// Leave room for a slow AI reply plus retries.
+export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 
 /** Marks an error in the text stream. The browser shows the message instead of a tutor reply. */
@@ -31,16 +33,16 @@ export async function POST(request: Request) {
   if (!parsed.success) return bad("Invalid message.");
   const { sessionId, code, message } = parsed.data;
 
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   if (!session) return bad("That session does not exist.", 404);
   if (session.phase !== "tutor") return bad("Tutoring is finished for this session. Refresh the page.", 409);
   if (!llmConfigured()) return bad("The AI is not set up, so the tutor cannot run. Skip to the post-test.", 503);
 
   const pack = loadPack();
-  const { current } = tutorPlan(session, pack);
+  const { current } = await tutorPlan(session, pack);
   if (!current || current.code !== code || code === FOUNDATIONS) return bad("That idea is not the current one. Refresh the page.", 409);
 
-  const history = conversation(session.id, code);
+  const history = await conversation(session.id, code);
   if (message) {
     addTutoringEvent({ sessionId: session.id, studyGroup: session.study_group, code, role: "student", message });
     history.push({ role: "student", text: message });
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
     return bad("Write a reply first.");
   }
 
-  const evidence = evidenceFor(session, pack, code);
+  const evidence = await evidenceFor(session, pack, code);
   const system = tutorSystemPrompt({
     pack,
     code,
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
       try {
         const reply = await streamText(
           { sessionId: session.id, studyGroup: session.study_group, purpose: "tutor" },
-          { system, messages, maxTokens: 4000 },
+          { system, messages, maxTokens: 4000, thinking: "low" },
           (piece) => controller.enqueue(encoder.encode(piece)),
         );
         addTutoringEvent({ sessionId: session.id, studyGroup: session.study_group, code, role: "tutor", message: reply });

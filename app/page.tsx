@@ -22,10 +22,10 @@ export default function SetupPage() {
           <SetupForm studyMode={studyMode} />
         </section>
         <section className="enter" aria-label="Motion lab demonstration">
-          {/* A plain drop from 20 m: chosen so it does not answer any test question. */}
+          {/* A plain drop from 30 m: chosen so it does not answer any test question. */}
           <MotionLab
-            h0={20}
-            title="Ball dropped from 20 m"
+            h0={30}
+            title="Ball dropped from 30 m"
             caption="Each outlined circle marks where the ball was, every 0.2 s. The graphs draw as it falls."
           />
         </section>

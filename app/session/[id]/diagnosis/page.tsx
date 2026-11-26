@@ -10,6 +10,8 @@ import { getOrRunDiagnosis } from "@/lib/run-diagnosis";
 import { phaseHref } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
+// The AI diagnosis can take a while on a busy free tier, with retries.
+export const maxDuration = 120;
 
 const NUMBER_WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
 
@@ -54,7 +56,7 @@ function MisconceptionCard({ result, tutorNow, pack }: { result: CodeResult; tut
 
 export default async function DiagnosisPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = getSession(id);
+  const session = await getSession(id);
   if (!session) notFound();
   if (session.phase !== "diagnosis") redirect(phaseHref(session.id, session.phase));
 
@@ -85,7 +87,7 @@ export default async function DiagnosisPage({ params }: { params: Promise<{ id: 
   }
 
   // The ten pre-test answers in the order the student saw them.
-  const answers = new Map(getAnswers(session.id, "pretest").map((a) => [a.qid, a]));
+  const answers = new Map((await getAnswers(session.id, "pretest")).map((a) => [a.qid, a]));
   const scan = pack.sets.A_pre.map((qid) => {
     const a = answers.get(qid);
     if (!a || a.choice === null) return { qid, cls: "", text: "Blank" };

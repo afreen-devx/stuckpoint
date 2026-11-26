@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PosttestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { session, questions, initialAnswers } = loadTestPage(id, "posttest");
+  const { session, questions, initialAnswers } = await loadTestPage(id, "posttest");
 
   return (
     <TestRunner

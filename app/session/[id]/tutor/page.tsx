@@ -23,12 +23,12 @@ const LAB_CAPTION: Record<string, string> = {
 
 export default async function TutorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = getSession(id);
+  const session = await getSession(id);
   if (!session) notFound();
   if (session.phase !== "tutor") redirect(phaseHref(session.id, session.phase));
 
   const pack = loadPack();
-  const { items, current } = tutorPlan(session, pack);
+  const { items, current } = await tutorPlan(session, pack);
   const position = current ? items.findIndex((i) => i.code === current.code) + 1 : items.length;
 
   if (!current) {
@@ -64,11 +64,13 @@ export default async function TutorPage({ params }: { params: Promise<{ id: stri
   }
 
   const m = pack.misconceptions[current.code];
-  const turns = conversation(session.id, current.code).map((t) => {
+  const turns = (await conversation(session.id, current.code)).map((t) => {
     if (t.role === "student") return { ...t, ready: false };
     const r = readReady(t.text);
     return { role: t.role, text: r.text, ready: r.ready };
   });
+
+  const evidence = (await evidenceFor(session, pack, current.code)).map((e) => ({ label: e.label, chose: e.chose, reason: e.reason }));
 
   return (
     <TutorRunner
@@ -78,7 +80,7 @@ export default async function TutorPage({ params }: { params: Promise<{ id: stri
       code={current.code}
       name={m.name}
       belief={m.belief}
-      evidence={evidenceFor(session, pack, current.code).map((e) => ({ label: e.label, chose: e.chose, reason: e.reason }))}
+      evidence={evidence}
       initialTurns={turns}
       aiReady={llmConfigured()}
       lab={LAB_CAPTION[current.code] ?? null}

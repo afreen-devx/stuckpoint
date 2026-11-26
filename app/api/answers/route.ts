@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return bad("Invalid answer.");
   const { sessionId, phase, qid, choice, timeMs } = parsed.data;
 
-  const session = getSession(sessionId);
+  const session = await getSession(sessionId);
   if (!session) return bad("That session does not exist.", 404);
   if (session.phase !== phase) {
     return bad("This test is already finished. Refresh the page to continue.", 409);
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   const reason = phase === "pretest" ? parsed.data.reason.trim() : "";
   const { correct, optionTag } = scoreChoice(question, choice);
 
-  saveAnswer({
+  await saveAnswer({
     sessionId,
     studyGroup: session.study_group,
     phase,

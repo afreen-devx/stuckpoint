@@ -63,35 +63,71 @@ export function llmConfigured(): boolean {
   return isProvider(s.provider) && s.model.length > 0 && s.apiKey.length > 0;
 }
 
-const TIMEOUT_MS = 90_000;
+/**
+ * How long to wait for one model before giving up on it. A slow free-tier model is skipped for the
+ * fallback model instead of leaving a student waiting. Streams get longer, since the reply arrives
+ * piece by piece.
+ */
+const TIMEOUT_MS = 40_000;
+const STREAM_TIMEOUT_MS = 60_000;
 /** Waits before each retry of a busy reply. Kept short so a student is not left waiting long. */
 const RETRY_DELAYS_MS = [2_000, 5_000];
 /** Statuses that usually clear up by themselves: rate limit, server error, overloaded. */
 const TRANSIENT = new Set([429, 500, 502, 503, 504]);
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-type LlmRequest = { system: string; messages: ChatMessage[]; maxTokens?: number };
+type LlmRequest = {
+  system: string;
+  messages: ChatMessage[];
+  maxTokens?: number;
+  /**
+   * How long Gemini may think before answering. Lower is faster. Unset uses the model's default
+   * (medium on Gemini 3.8 Flash). Ignored for Claude.
+   */
+  thinking?: "low" | "medium" | "high";
+  /** Override the wait before switching to the fallback model, in milliseconds. */
+  timeoutMs?: number;
+};
+
+/** Gemini generation settings, with the thinking level when one is asked for. */
+function geminiConfig(request: LlmRequest) {
+  return {
+    maxOutputTokens: request.maxTokens ?? 8000,
+    ...(request.thinking ? { thinkingConfig: { thinkingLevel: request.thinking } } : {}),
+  };
+}
 type Reply = { status: number; ok: boolean; data: unknown };
 type Parsed = { text: string; inputTokens: number; outputTokens: number; errorMessage: string };
 
 /** POST JSON with a timeout, and turn network failures into readable errors. */
-async function post(url: string, headers: Record<string, string>, body: unknown): Promise<Reply> {
+async function post(url: string, headers: Record<string, string>, body: unknown, timeoutMs: number): Promise<Reply> {
+  const signal = AbortSignal.timeout(timeoutMs);
+  const failed = (error: unknown) => {
+    const timedOut = signal.aborted || (error instanceof Error && error.name === "TimeoutError");
+    return new LlmError(
+      timedOut ? "timeout" : "http_error",
+      timedOut ? "The AI took too long to answer." : "Could not reach the AI service.",
+    );
+  };
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal,
     });
   } catch (error) {
-    const timedOut = error instanceof Error && error.name === "TimeoutError";
-    throw new LlmError(
-      timedOut ? "timeout" : "http_error",
-      timedOut ? "The AI took too long to answer." : "Could not reach the AI service.",
-    );
+    throw failed(error);
   }
-  return { status: res.status, ok: res.ok, data: await res.json().catch(() => ({})) };
+  let data: unknown = {};
+  try {
+    data = await res.json();
+  } catch (error) {
+    // A reply cut off by the timeout is a timeout, not an empty answer.
+    if (signal.aborted) throw failed(error);
+  }
+  return { status: res.status, ok: res.ok, data };
 }
 
 /* ---------- Anthropic (Claude) ---------- */
@@ -113,6 +149,7 @@ async function callAnthropic(model: string, apiKey: string, request: LlmRequest)
       system: request.system,
       messages: request.messages,
     },
+    request.timeoutMs ?? TIMEOUT_MS,
   );
   const data = reply.data as AnthropicResponse;
   return {
@@ -150,8 +187,9 @@ async function callGemini(model: string, apiKey: string, request: LlmRequest): P
         role: m.role === "assistant" ? "model" : "user",
         parts: [{ text: m.content }],
       })),
-      generationConfig: { maxOutputTokens: request.maxTokens ?? 8000 },
+      generationConfig: geminiConfig(request),
     },
+    request.timeoutMs ?? TIMEOUT_MS,
   );
   const data = reply.data as GeminiResponse;
   const parts = data.candidates?.[0]?.content?.parts ?? [];
@@ -199,7 +237,18 @@ export async function complete(ctx: CallContext, request: LlmRequest): Promise<s
       usedModel = model;
       for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
         if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1]);
-        const { reply, parsed } = await call(model, s.apiKey, request);
+        let result: Awaited<ReturnType<typeof call>>;
+        try {
+          result = await call(model, s.apiKey, request);
+        } catch (error) {
+          // Too slow or unreachable: waiting again on the same model rarely helps, so move on.
+          if (error instanceof LlmError && (error.code === "timeout" || error.code === "http_error")) {
+            lastError = error;
+            break;
+          }
+          throw error;
+        }
+        const { reply, parsed } = result;
         inputTokens += parsed.inputTokens;
         outputTokens += parsed.outputTokens;
 
@@ -223,7 +272,7 @@ export async function complete(ctx: CallContext, request: LlmRequest): Promise<s
   } finally {
     // Logging must never break the request it describes.
     try {
-      logLlmCall({
+      await logLlmCall({
         sessionId: ctx.sessionId,
         studyGroup: ctx.studyGroup,
         purpose: ctx.purpose,
@@ -281,7 +330,13 @@ export async function completeJSON<T>(
 type Usage = { input: number; output: number };
 
 /** Open a streaming request. Returns the raw response so the caller can check the status first. */
-async function openStream(provider: Provider, model: string, apiKey: string, request: LlmRequest): Promise<Response> {
+async function openStream(
+  provider: Provider,
+  model: string,
+  apiKey: string,
+  request: LlmRequest,
+  signal: AbortSignal,
+): Promise<Response> {
   const google = provider === "google";
   const url = google
     ? `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`
@@ -293,7 +348,7 @@ async function openStream(provider: Provider, model: string, apiKey: string, req
     ? {
         system_instruction: { parts: [{ text: request.system }] },
         contents: request.messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
-        generationConfig: { maxOutputTokens: request.maxTokens ?? 8000 },
+        generationConfig: geminiConfig(request),
       }
     : { model, max_tokens: request.maxTokens ?? 8000, system: request.system, messages: request.messages, stream: true };
   try {
@@ -301,11 +356,10 @@ async function openStream(provider: Provider, model: string, apiKey: string, req
       method: "POST",
       headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal,
     });
-  } catch (error) {
-    const timedOut = error instanceof Error && error.name === "TimeoutError";
-    throw new LlmError(timedOut ? "timeout" : "http_error", timedOut ? "The AI took too long to answer." : "Could not reach the AI service.");
+  } catch {
+    throw new LlmError(signal.aborted ? "timeout" : "http_error", signal.aborted ? "The AI took too long to answer." : "Could not reach the AI service.");
   }
 }
 
@@ -398,11 +452,30 @@ export async function streamText(ctx: CallContext, request: LlmRequest, onText: 
       usedModel = model;
       for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
         if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1]);
-        const res = await openStream(provider, model, s.apiKey, request);
-        if (res.ok) {
-          const text = await readStream(res, provider, onText, usage);
-          if (!text) throw new LlmError("bad_response", "The AI returned an empty answer.");
-          return text;
+        const signal = AbortSignal.timeout(request.timeoutMs ?? STREAM_TIMEOUT_MS);
+        let sent = false;
+        const forward = (piece: string) => {
+          sent = true;
+          onText(piece);
+        };
+        let res: Response;
+        try {
+          res = await openStream(provider, model, s.apiKey, request, signal);
+          if (res.ok) {
+            const text = await readStream(res, provider, forward, usage);
+            if (!text) throw new LlmError("bad_response", "The AI returned an empty answer.");
+            return text;
+          }
+        } catch (error) {
+          // Nothing shown yet and the model is too slow: try the fallback model. Once text has
+          // reached the student, a failure is reported instead, so no reply is ever half replaced.
+          const slow = signal.aborted || (error instanceof LlmError && (error.code === "timeout" || error.code === "http_error"));
+          if (!sent && slow) {
+            lastError = error instanceof LlmError ? error : new LlmError("timeout", "The AI took too long to answer.");
+            break;
+          }
+          if (signal.aborted) throw new LlmError("timeout", "The AI took too long to finish its reply.");
+          throw error;
         }
         const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
         lastError =
@@ -418,7 +491,7 @@ export async function streamText(ctx: CallContext, request: LlmRequest, onText: 
     throw error;
   } finally {
     try {
-      logLlmCall({
+      await logLlmCall({
         sessionId: ctx.sessionId,
         studyGroup: ctx.studyGroup,
         purpose: ctx.purpose,

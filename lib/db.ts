@@ -1,14 +1,15 @@
-import { DatabaseSync } from "node:sqlite";
-import { mkdirSync } from "node:fs";
-import path from "node:path";
 import type { Language, Phase, StudyGroup, TestPhase } from "./types";
 
 /**
- * One small SQLite file, one schema, and a handful of prepared statements.
- * Uses Node's built-in SQLite (node:sqlite, Node 22.13 or newer), so nothing has to be
- * compiled on install. That keeps setup to "npm install" on Windows, Mac and Linux.
- * Every row that belongs to a session also stores the study group, as required
- * for the study mode comparison.
+ * StuckPoint's database: one SQLite schema, reached two ways.
+ *
+ * - Online (Vercel): set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN. The data lives in Turso, a hosted
+ *   SQLite service, because a file on a Vercel server is temporary and would lose the study data.
+ * - On your own computer: leave those unset and the data goes in data/stuckpoint.db, using Node's
+ *   built-in SQLite (node:sqlite, Node 22.13 or newer). Nothing has to be compiled.
+ *
+ * Every function is async so both work the same way. Every row that belongs to a session also
+ * stores the study group, as required for the study mode comparison.
  */
 
 const SCHEMA = `
@@ -98,19 +99,118 @@ CREATE TABLE IF NOT EXISTS llm_calls (
 );
 `;
 
-let db: DatabaseSync | null = null;
 
-export function getDb(): DatabaseSync {
-  if (db) return db;
+type Value = string | number | null;
+type Row = Record<string, unknown>;
+type Statement = { sql: string; args: Value[] };
 
+/** The two places the data can live. Both take SQL with ? placeholders. */
+interface Backend {
+  all(sql: string, args: Value[]): Promise<Row[]>;
+  run(sql: string, args: Value[]): Promise<void>;
+  /** Run several statements as one transaction: all of them, or none. */
+  batch(statements: Statement[]): Promise<void>;
+}
+
+/** Turso over HTTPS, with the official client's web build (plain fetch, nothing native). */
+async function tursoBackend(url: string, authToken: string): Promise<Backend> {
+  const { createClient } = await import("@libsql/client/web");
+  // Use plain HTTPS: it works everywhere a fetch works, including Vercel functions.
+  const client = createClient({ url: url.replace(/^libsql:\/\//, "https://"), authToken });
+  await client.executeMultiple(SCHEMA);
+  const rows = (rs: { columns: string[]; rows: ArrayLike<unknown>[] }): Row[] =>
+    Array.from(rs.rows, (r) => Object.fromEntries(rs.columns.map((c, i) => [c, normalise(r[i])])));
+  return {
+    async all(sql, args) {
+      return rows(await client.execute({ sql, args }));
+    },
+    async run(sql, args) {
+      await client.execute({ sql, args });
+    },
+    async batch(statements) {
+      await client.batch(statements, "write");
+    },
+  };
+}
+
+/** A local SQLite file through Node's built-in driver. */
+async function fileBackend(): Promise<Backend> {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { mkdirSync } = await import("node:fs");
+  const path = (await import("node:path")).default;
   const file = process.env.DB_PATH ?? path.join(process.cwd(), "data", "stuckpoint.db");
   const absolute = path.isAbsolute(file) ? file : path.join(process.cwd(), file);
   mkdirSync(path.dirname(absolute), { recursive: true });
-
-  db = new DatabaseSync(absolute);
+  const db = new DatabaseSync(absolute);
   db.exec("PRAGMA journal_mode = WAL");
   db.exec(SCHEMA);
-  return db;
+  return {
+    async all(sql, args) {
+      return (db.prepare(sql).all(...args) as Row[]).map((r) =>
+        Object.fromEntries(Object.entries(r).map(([k, v]) => [k, normalise(v)])),
+      );
+    },
+    async run(sql, args) {
+      db.prepare(sql).run(...args);
+    },
+    async batch(statements) {
+      db.exec("BEGIN");
+      try {
+        for (const s of statements) db.prepare(s.sql).run(...s.args);
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    },
+  };
+}
+
+/** Whole numbers can come back as bigint; the app only needs plain numbers. */
+function normalise(value: unknown): unknown {
+  return typeof value === "bigint" ? Number(value) : value;
+}
+
+let backend: Promise<Backend> | null = null;
+
+function db(): Promise<Backend> {
+  if (!backend) {
+    const url = (process.env.TURSO_DATABASE_URL ?? "").trim();
+    const token = (process.env.TURSO_AUTH_TOKEN ?? "").trim();
+    backend = url ? tursoBackend(url, token) : fileBackend();
+    // If setup fails (a wrong URL, say), try again on the next request instead of failing forever.
+    backend.catch(() => {
+      backend = null;
+    });
+  }
+  return backend;
+}
+
+/** True when the data is stored online in Turso rather than in a local file. */
+export function usingTurso(): boolean {
+  return (process.env.TURSO_DATABASE_URL ?? "").trim().length > 0;
+}
+
+/**
+ * Write SQL with @name placeholders and pass an object; this turns it into ? placeholders and an
+ * argument list, which both backends accept.
+ */
+function named(sql: string, values: Record<string, Value>): Statement {
+  const args: Value[] = [];
+  const text = sql.replace(/@([A-Za-z_][A-Za-z0-9_]*)/g, (_, name: string) => {
+    if (!(name in values)) throw new Error(`Missing value for @${name}`);
+    args.push(values[name]);
+    return "?";
+  });
+  return { sql: text, args };
+}
+
+async function all<T>(sql: string, ...args: Value[]): Promise<T[]> {
+  return (await (await db()).all(sql, args)) as T[];
+}
+
+async function run(statement: Statement): Promise<void> {
+  await (await db()).run(statement.sql, statement.args);
 }
 
 export type SessionRow = {
@@ -141,12 +241,12 @@ function now(): string {
   return new Date().toISOString();
 }
 
-export function createSession(input: {
+export async function createSession(input: {
   studentId: string;
   classCode: string | null;
   language: Language;
   studyGroup: StudyGroup;
-}): SessionRow {
+}): Promise<SessionRow> {
   const row: SessionRow = {
     id: crypto.randomUUID(),
     student_id: input.studentId,
@@ -156,26 +256,27 @@ export function createSession(input: {
     phase: "pretest",
     created_at: now(),
   };
-  getDb()
-    .prepare(
+  await run(
+    named(
       `INSERT INTO sessions (id, student_id, class_code, language, study_group, phase, created_at)
        VALUES (@id, @student_id, @class_code, @language, @study_group, @phase, @created_at)`,
-    )
-    .run(row);
+      row,
+    ),
+  );
   return row;
 }
 
-export function getSession(id: string): SessionRow | null {
-  const row = getDb().prepare("SELECT * FROM sessions WHERE id = ?").get(id) as unknown as SessionRow | undefined;
-  return row ?? null;
+export async function getSession(id: string): Promise<SessionRow | null> {
+  const rows = await all<SessionRow>("SELECT * FROM sessions WHERE id = ?", id);
+  return rows[0] ?? null;
 }
 
-export function setPhase(id: string, phase: Phase): void {
-  getDb().prepare("UPDATE sessions SET phase = ? WHERE id = ?").run(phase, id);
+export async function setPhase(id: string, phase: Phase): Promise<void> {
+  await run({ sql: "UPDATE sessions SET phase = ? WHERE id = ?", args: [phase, id] });
 }
 
 /** Save one answer. Revisiting a question replaces the earlier answer. */
-export function saveAnswer(input: {
+export async function saveAnswer(input: {
   sessionId: string;
   studyGroup: StudyGroup;
   phase: TestPhase;
@@ -186,9 +287,9 @@ export function saveAnswer(input: {
   reason: string;
   timeMs: number;
   guess: boolean;
-}): void {
-  getDb()
-    .prepare(
+}): Promise<void> {
+  await run(
+    named(
       `INSERT INTO answers
          (session_id, study_group, phase, qid, choice, correct, option_tag, reason, time_ms, guess, created_at)
        VALUES (@sessionId, @studyGroup, @phase, @qid, @choice, @correct, @optionTag, @reason, @timeMs, @guess, @createdAt)
@@ -200,65 +301,55 @@ export function saveAnswer(input: {
          time_ms = excluded.time_ms,
          guess = excluded.guess,
          created_at = excluded.created_at`,
-    )
-    .run({
-      sessionId: input.sessionId,
-      studyGroup: input.studyGroup,
-      phase: input.phase,
-      qid: input.qid,
-      choice: input.choice,
-      correct: input.correct ? 1 : 0,
-      optionTag: input.optionTag,
-      reason: input.reason,
-      timeMs: input.timeMs,
-      guess: input.guess ? 1 : 0,
-      createdAt: now(),
-    });
+      {
+        sessionId: input.sessionId,
+        studyGroup: input.studyGroup,
+        phase: input.phase,
+        qid: input.qid,
+        choice: input.choice,
+        correct: input.correct ? 1 : 0,
+        optionTag: input.optionTag,
+        reason: input.reason,
+        timeMs: input.timeMs,
+        guess: input.guess ? 1 : 0,
+        createdAt: now(),
+      },
+    ),
+  );
 }
 
-export function getAnswers(sessionId: string, phase: TestPhase): AnswerRow[] {
-  return getDb()
-    .prepare("SELECT * FROM answers WHERE session_id = ? AND phase = ? ORDER BY id")
-    .all(sessionId, phase) as unknown as AnswerRow[];
+export async function getAnswers(sessionId: string, phase: TestPhase): Promise<AnswerRow[]> {
+  return all<AnswerRow>("SELECT * FROM answers WHERE session_id = ? AND phase = ? ORDER BY id", sessionId, phase);
 }
 
-export function getDiagnoses(sessionId: string) {
-  return getDb()
-    .prepare("SELECT * FROM diagnoses WHERE session_id = ? ORDER BY evidence_count DESC")
-    .all(sessionId) as unknown as {
-    code: string;
-    evidence_count: number;
-    status: string;
-    evidence_json: string;
-  }[];
+export async function getDiagnoses(sessionId: string) {
+  return all<{ code: string; evidence_count: number; status: string; evidence_json: string }>(
+    "SELECT * FROM diagnoses WHERE session_id = ? ORDER BY evidence_count DESC",
+    sessionId,
+  );
 }
 
-export function getTutoringEvents(sessionId: string) {
-  return getDb()
-    .prepare("SELECT * FROM tutoring_events WHERE session_id = ? ORDER BY id")
-    .all(sessionId) as unknown as {
-    code: string;
-    role: string;
-    message: string;
-    created_at: string;
-  }[];
+export type TutoringEventRow = { code: string; role: string; message: string; created_at: string };
+
+export async function getTutoringEvents(sessionId: string): Promise<TutoringEventRow[]> {
+  return all<TutoringEventRow>("SELECT * FROM tutoring_events WHERE session_id = ? ORDER BY id", sessionId);
 }
 
-export function getMasteryChecks(sessionId: string) {
-  return getDb()
-    .prepare("SELECT * FROM mastery_checks WHERE session_id = ? ORDER BY id")
-    .all(sessionId) as unknown as {
-    code: string;
-    q1_correct: number;
-    q2_correct: number;
-    explain_pass: number;
-    mastered: number;
-    explanation: string | null;
-  }[];
+export type MasteryCheckRow = {
+  code: string;
+  q1_correct: number;
+  q2_correct: number;
+  explain_pass: number;
+  mastered: number;
+  explanation: string | null;
+};
+
+export async function getMasteryChecks(sessionId: string): Promise<MasteryCheckRow[]> {
+  return all<MasteryCheckRow>("SELECT * FROM mastery_checks WHERE session_id = ? ORDER BY id", sessionId);
 }
 
 /** Record one LLM call: what it was for, how long it took, tokens, and whether it worked. */
-export function logLlmCall(input: {
+export async function logLlmCall(input: {
   sessionId: string;
   studyGroup: StudyGroup | null;
   purpose: string;
@@ -268,25 +359,26 @@ export function logLlmCall(input: {
   outputTokens: number;
   ok: boolean;
   errorCode: string | null;
-}): void {
-  getDb()
-    .prepare(
+}): Promise<void> {
+  await run(
+    named(
       `INSERT INTO llm_calls
          (session_id, study_group, purpose, model, latency_ms, input_tokens, output_tokens, ok, error_code, created_at)
        VALUES (@sessionId, @studyGroup, @purpose, @model, @latencyMs, @inputTokens, @outputTokens, @ok, @errorCode, @createdAt)`,
-    )
-    .run({
-      sessionId: input.sessionId,
-      studyGroup: input.studyGroup,
-      purpose: input.purpose,
-      model: input.model,
-      latencyMs: input.latencyMs,
-      inputTokens: input.inputTokens,
-      outputTokens: input.outputTokens,
-      ok: input.ok ? 1 : 0,
-      errorCode: input.errorCode,
-      createdAt: now(),
-    });
+      {
+        sessionId: input.sessionId,
+        studyGroup: input.studyGroup,
+        purpose: input.purpose,
+        model: input.model,
+        latencyMs: input.latencyMs,
+        inputTokens: input.inputTokens,
+        outputTokens: input.outputTokens,
+        ok: input.ok ? 1 : 0,
+        errorCode: input.errorCode,
+        createdAt: now(),
+      },
+    ),
+  );
 }
 
 export type DiagnosisRunRow = {
@@ -297,85 +389,79 @@ export type DiagnosisRunRow = {
   created_at: string;
 };
 
-export function getDiagnosisRun(sessionId: string): DiagnosisRunRow | null {
-  const row = getDb().prepare("SELECT * FROM diagnosis_runs WHERE session_id = ?").get(sessionId) as unknown as
-    | DiagnosisRunRow
-    | undefined;
-  return row ?? null;
+export async function getDiagnosisRun(sessionId: string): Promise<DiagnosisRunRow | null> {
+  const rows = await all<DiagnosisRunRow>("SELECT * FROM diagnosis_runs WHERE session_id = ?", sessionId);
+  return rows[0] ?? null;
 }
 
 /**
  * Store one session's diagnosis: the full result for the page, plus one row per
  * misconception for the teacher view and the CSV log. Saving twice replaces the first.
  */
-export function saveDiagnosisRun(input: {
+export async function saveDiagnosisRun(input: {
   sessionId: string;
   studyGroup: StudyGroup;
   usedAi: boolean;
   note: string | null;
   resultJson: string;
   codes: { code: string; evidenceCount: number; status: string; evidenceJson: string }[];
-}): void {
-  const db = getDb();
+}): Promise<void> {
   const createdAt = now();
-  db.exec("BEGIN");
-  try {
-    db.prepare(
+  await (await db()).batch([
+    named(
       `INSERT INTO diagnosis_runs (session_id, study_group, used_ai, note, result_json, created_at)
        VALUES (@sessionId, @studyGroup, @usedAi, @note, @resultJson, @createdAt)
        ON CONFLICT (session_id) DO UPDATE SET
          used_ai = excluded.used_ai, note = excluded.note, result_json = excluded.result_json, created_at = excluded.created_at`,
-    ).run({
-      sessionId: input.sessionId,
-      studyGroup: input.studyGroup,
-      usedAi: input.usedAi ? 1 : 0,
-      note: input.note,
-      resultJson: input.resultJson,
-      createdAt,
-    });
-    db.prepare("DELETE FROM diagnoses WHERE session_id = ?").run(input.sessionId);
-    const insert = db.prepare(
-      `INSERT INTO diagnoses (session_id, study_group, code, evidence_count, status, evidence_json, created_at)
-       VALUES (@sessionId, @studyGroup, @code, @evidenceCount, @status, @evidenceJson, @createdAt)`,
-    );
-    for (const row of input.codes) {
-      insert.run({
+      {
         sessionId: input.sessionId,
         studyGroup: input.studyGroup,
-        code: row.code,
-        evidenceCount: row.evidenceCount,
-        status: row.status,
-        evidenceJson: row.evidenceJson,
+        usedAi: input.usedAi ? 1 : 0,
+        note: input.note,
+        resultJson: input.resultJson,
         createdAt,
-      });
-    }
-    db.exec("COMMIT");
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
+      },
+    ),
+    { sql: "DELETE FROM diagnoses WHERE session_id = ?", args: [input.sessionId] },
+    ...input.codes.map((row) =>
+      named(
+        `INSERT INTO diagnoses (session_id, study_group, code, evidence_count, status, evidence_json, created_at)
+         VALUES (@sessionId, @studyGroup, @code, @evidenceCount, @status, @evidenceJson, @createdAt)`,
+        {
+          sessionId: input.sessionId,
+          studyGroup: input.studyGroup,
+          code: row.code,
+          evidenceCount: row.evidenceCount,
+          status: row.status,
+          evidenceJson: row.evidenceJson,
+          createdAt,
+        },
+      ),
+    ),
+  ]);
 }
 
 /* ---------- Tutoring ---------- */
 
 /** One line of a tutoring conversation, or a marker such as a skipped idea or a generated check. */
-export function addTutoringEvent(input: {
+export async function addTutoringEvent(input: {
   sessionId: string;
   studyGroup: StudyGroup;
   code: string;
   role: "student" | "tutor" | "check" | "skip" | "done";
   message: string;
-}): void {
-  getDb()
-    .prepare(
+}): Promise<void> {
+  await run(
+    named(
       `INSERT INTO tutoring_events (session_id, study_group, code, role, message, created_at)
        VALUES (@sessionId, @studyGroup, @code, @role, @message, @createdAt)`,
-    )
-    .run({ ...input, createdAt: now() });
+      { ...input, createdAt: now() },
+    ),
+  );
 }
 
 /** Save the mastery check for one idea. A retry replaces the earlier attempt. */
-export function saveMasteryCheck(input: {
+export async function saveMasteryCheck(input: {
   sessionId: string;
   studyGroup: StudyGroup;
   code: string;
@@ -384,25 +470,26 @@ export function saveMasteryCheck(input: {
   explainPass: boolean;
   mastered: boolean;
   explanation: string;
-}): void {
-  getDb()
-    .prepare(
+}): Promise<void> {
+  await run(
+    named(
       `INSERT INTO mastery_checks
          (session_id, study_group, code, q1_correct, q2_correct, explain_pass, mastered, explanation, created_at)
        VALUES (@sessionId, @studyGroup, @code, @q1Correct, @q2Correct, @explainPass, @mastered, @explanation, @createdAt)
        ON CONFLICT (session_id, code) DO UPDATE SET
          q1_correct = excluded.q1_correct, q2_correct = excluded.q2_correct, explain_pass = excluded.explain_pass,
          mastered = excluded.mastered, explanation = excluded.explanation, created_at = excluded.created_at`,
-    )
-    .run({
-      sessionId: input.sessionId,
-      studyGroup: input.studyGroup,
-      code: input.code,
-      q1Correct: input.q1Correct,
-      q2Correct: input.q2Correct,
-      explainPass: input.explainPass ? 1 : 0,
-      mastered: input.mastered ? 1 : 0,
-      explanation: input.explanation,
-      createdAt: now(),
-    });
+      {
+        sessionId: input.sessionId,
+        studyGroup: input.studyGroup,
+        code: input.code,
+        q1Correct: input.q1Correct,
+        q2Correct: input.q2Correct,
+        explainPass: input.explainPass ? 1 : 0,
+        mastered: input.mastered ? 1 : 0,
+        explanation: input.explanation,
+        createdAt: now(),
+      },
+    ),
+  );
 }

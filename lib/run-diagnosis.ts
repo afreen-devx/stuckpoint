@@ -22,11 +22,11 @@ const VerdictsSchema = z.array(
  * so a reload tries the AI again.
  */
 export async function getOrRunDiagnosis(session: SessionRow): Promise<Diagnosis> {
-  const stored = getDiagnosisRun(session.id);
+  const stored = await getDiagnosisRun(session.id);
   if (stored) return JSON.parse(stored.result_json) as Diagnosis;
 
   const pack = loadPack();
-  const answers: DiagnosisAnswer[] = getAnswers(session.id, "pretest").map((a) => ({
+  const answers: DiagnosisAnswer[] = (await getAnswers(session.id, "pretest")).map((a) => ({
     qid: a.qid,
     choice: a.choice,
     correct: a.correct === 1,
@@ -53,7 +53,7 @@ export async function getOrRunDiagnosis(session: SessionRow): Promise<Diagnosis>
       const { system, user } = diagnosisPrompt(pack, items);
       const raw = await completeJSON<ReasonVerdict[]>(
         { sessionId: session.id, studyGroup: session.study_group, purpose: "diagnosis" },
-        { system, messages: [{ role: "user", content: user }] },
+        { system, messages: [{ role: "user", content: user }], thinking: "low" },
         VerdictsSchema,
       );
       const asked = new Set(items.map((i) => i.qid));
@@ -68,7 +68,7 @@ export async function getOrRunDiagnosis(session: SessionRow): Promise<Diagnosis>
   const diagnosis = computeDiagnosis(pack, answers, verdicts, note);
 
   if (store) {
-    saveDiagnosisRun({
+    await saveDiagnosisRun({
       sessionId: session.id,
       studyGroup: session.study_group,
       usedAi: diagnosis.usedAi,

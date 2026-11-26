@@ -171,7 +171,10 @@ export function validatePack(raw: unknown): ValidationResult {
 let cached: Pack | null = null;
 
 /** Read packs/<id>.json and validate it. Throws PackError so the failure is loud. */
-export function loadPack(packId = "KIN-01"): Pack {
+/** The pack the app uses. KIN-02 is the harder, number-based set; KIN-01 is kept for reference. */
+export const DEFAULT_PACK = process.env.PACK_ID?.trim() || "KIN-02";
+
+export function loadPack(packId = DEFAULT_PACK): Pack {
   if (cached && cached.id === packId) return cached;
 
   const file = path.join(process.cwd(), "packs", `${packId}.json`);

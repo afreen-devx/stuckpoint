@@ -1,5 +1,5 @@
 import { getAnswers, getDiagnosisRun, getMasteryChecks, getTutoringEvents, type SessionRow } from "./db";
-import type { Diagnosis } from "./diagnosis";
+import { computeDiagnosis, type Diagnosis } from "./diagnosis";
 import { questionLabel } from "./labels";
 import type { Pack } from "./pack";
 import { READY_TOKEN, type TutorEvidence } from "./prompts";
@@ -19,17 +19,38 @@ export type TutorItem = {
 
 export type TutorTurn = { role: "student" | "tutor"; text: string };
 
-export function storedDiagnosis(sessionId: string): Diagnosis | null {
-  const row = getDiagnosisRun(sessionId);
+export async function storedDiagnosis(sessionId: string): Promise<Diagnosis | null> {
+  const row = await getDiagnosisRun(sessionId);
   return row ? (JSON.parse(row.result_json) as Diagnosis) : null;
 }
 
+/**
+ * The diagnosis tutoring works from. If the AI diagnosis failed and was not saved, use the
+ * answer-choices-only diagnosis (the same one the diagnosis page showed), so tutoring still runs.
+ */
+async function planDiagnosis(session: SessionRow, pack: Pack): Promise<Diagnosis> {
+  const stored = await storedDiagnosis(session.id);
+  if (stored) return stored;
+  const answers = (await getAnswers(session.id, "pretest")).map((a) => ({
+    qid: a.qid,
+    choice: a.choice,
+    correct: a.correct === 1,
+    optionTag: a.option_tag,
+    reason: a.reason ?? "",
+    guess: a.guess === 1,
+  }));
+  return computeDiagnosis(pack, answers, null, null);
+}
+
 /** The ideas to work through this session, in order, and where the student is. */
-export function tutorPlan(session: SessionRow, pack: Pack): { items: TutorItem[]; current: TutorItem | null } {
-  const d = storedDiagnosis(session.id);
+export async function tutorPlan(
+  session: SessionRow,
+  pack: Pack,
+): Promise<{ items: TutorItem[]; current: TutorItem | null }> {
+  const d = await planDiagnosis(session, pack);
   const queue = [...(d?.foundations && pack.foundations ? [FOUNDATIONS] : []), ...(d?.tutorQueue ?? [])];
-  const events = getTutoringEvents(session.id);
-  const checks = new Map(getMasteryChecks(session.id).map((c) => [c.code, c.mastered === 1]));
+  const events = await getTutoringEvents(session.id);
+  const checks = new Map((await getMasteryChecks(session.id)).map((c) => [c.code, c.mastered === 1]));
 
   let currentFound = false;
   const items = queue.map((code): TutorItem => {
@@ -47,8 +68,8 @@ export function tutorPlan(session: SessionRow, pack: Pack): { items: TutorItem[]
 }
 
 /** The saved conversation for one idea, oldest first. */
-export function conversation(sessionId: string, code: string): TutorTurn[] {
-  return getTutoringEvents(sessionId)
+export async function conversation(sessionId: string, code: string): Promise<TutorTurn[]> {
+  return (await getTutoringEvents(sessionId))
     .filter((e) => e.code === code && (e.role === "student" || e.role === "tutor"))
     .map((e) => ({ role: e.role as "student" | "tutor", text: e.message }));
 }
@@ -60,11 +81,11 @@ export function readReady(text: string): { text: string; ready: boolean } {
 }
 
 /** What the student did on the pre-test that points at this misconception, for the tutor prompt. */
-export function evidenceFor(session: SessionRow, pack: Pack, code: string): TutorEvidence[] {
-  const d = storedDiagnosis(session.id);
+export async function evidenceFor(session: SessionRow, pack: Pack, code: string): Promise<TutorEvidence[]> {
+  const d = await planDiagnosis(session, pack);
   const result = [...(d?.found ?? []), ...(d?.possible ?? [])].find((r) => r.code === code);
   const qids = [...new Set((result?.evidence ?? []).map((e) => e.qid))];
-  const answers = new Map(getAnswers(session.id, "pretest").map((a) => [a.qid, a]));
+  const answers = new Map((await getAnswers(session.id, "pretest")).map((a) => [a.qid, a]));
   return qids.flatMap((qid) => {
     const a = answers.get(qid);
     const q = pack.questions[qid];

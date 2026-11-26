@@ -33,8 +33,8 @@ export const LOG_COLUMNS = [
  * A flat log of one session: who (anonymous id), what was answered, what was
  * diagnosed, what was said in tutoring, and how mastery went.
  */
-export function buildSessionLog(sessionId: string): Record<string, unknown>[] {
-  const session = getSession(sessionId);
+export async function buildSessionLog(sessionId: string): Promise<Record<string, unknown>[]> {
+  const session = await getSession(sessionId);
   if (!session) return [];
 
   const rows: Record<string, unknown>[] = [
@@ -47,7 +47,7 @@ export function buildSessionLog(sessionId: string): Record<string, unknown>[] {
     },
   ];
 
-  for (const answer of getAnswers(sessionId, "pretest")) {
+  for (const answer of await getAnswers(sessionId, "pretest")) {
     rows.push({
       record: "answer",
       at: answer.created_at,
@@ -61,7 +61,7 @@ export function buildSessionLog(sessionId: string): Record<string, unknown>[] {
       guess: answer.guess,
     });
   }
-  for (const answer of getAnswers(sessionId, "posttest")) {
+  for (const answer of await getAnswers(sessionId, "posttest")) {
     rows.push({
       record: "answer",
       at: answer.created_at,
@@ -75,14 +75,14 @@ export function buildSessionLog(sessionId: string): Record<string, unknown>[] {
       guess: answer.guess,
     });
   }
-  for (const diagnosis of getDiagnoses(sessionId)) {
+  for (const diagnosis of await getDiagnoses(sessionId)) {
     rows.push({
       record: "diagnosis",
       code: diagnosis.code,
       detail: `${diagnosis.status}, evidence ${diagnosis.evidence_count}: ${diagnosis.evidence_json}`,
     });
   }
-  for (const event of getTutoringEvents(sessionId)) {
+  for (const event of await getTutoringEvents(sessionId)) {
     rows.push({
       record: "tutor",
       at: event.created_at,
@@ -91,7 +91,7 @@ export function buildSessionLog(sessionId: string): Record<string, unknown>[] {
       detail: event.message,
     });
   }
-  for (const check of getMasteryChecks(sessionId)) {
+  for (const check of await getMasteryChecks(sessionId)) {
     rows.push({
       record: "mastery",
       code: check.code,

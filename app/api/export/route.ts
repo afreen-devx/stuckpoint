@@ -7,10 +7,10 @@ export const runtime = "nodejs";
 /** Download one session's full log as CSV: GET /api/export?id=<session id> */
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id") ?? "";
-  const session = getSession(id);
+  const session = await getSession(id);
   if (!session) return NextResponse.json({ error: "That session does not exist." }, { status: 404 });
 
-  const csv = toCsv(LOG_COLUMNS, buildSessionLog(id));
+  const csv = toCsv(LOG_COLUMNS, await buildSessionLog(id));
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

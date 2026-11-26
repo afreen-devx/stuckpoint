@@ -13,7 +13,7 @@ const CreateBody = z.object({
     .string()
     .regex(/^[A-Z0-9]{1,12}$/, "Class code must be up to 12 capital letters or numbers.")
     .nullable(),
-  language: z.enum(["en", "te", "mix"]),
+  language: z.enum(["en", "te", "mix", "hi", "hinglish"]),
   consent: z.boolean().optional(),
 });
 

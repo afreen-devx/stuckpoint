@@ -1,6 +1,9 @@
 /** Types shared by the server and the browser. Keep this file free of imports. */
 
-export type Language = "en" | "te" | "mix";
+/** Tutor languages. Questions always stay in English so test scores compare fairly. */
+export type Language = "en" | "te" | "mix" | "hi" | "hinglish";
+
+export const LANGUAGES: Language[] = ["en", "te", "hi", "mix", "hinglish"];
 
 /** Study mode assigns every session to one of these groups. */
 export type StudyGroup = "stuckpoint" | "control";
@@ -14,5 +17,7 @@ export type Phase = TestPhase | "diagnosis" | "tutor" | "mastery" | "results";
 export const LANGUAGE_LABEL: Record<Language, string> = {
   en: "English",
   te: "Telugu",
+  hi: "Hindi",
   mix: "Telugu-English",
+  hinglish: "Hindi-English",
 };

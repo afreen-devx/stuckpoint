@@ -1,13 +1,47 @@
 # HANDOFF
 
-StuckPoint, end of milestone 2 (AI diagnosis). Updated 24 Nov 2026.
+StuckPoint, milestone 3 (tutoring) and the Lab amber redesign. Updated 26 Nov 2026.
 
 ## Status
 
-- **Milestone 1 runs** on a real machine: setup, pre-test, post-test, results and CSV were clicked through
-  end to end on Windows with Node 26.
-- **Milestone 2 is code-complete and tested offline**, but has not yet been run against the real
-  AI service. It needs `LLM_API_KEY` in `.env` (Gemini's free tier works).
+- **Milestones 1 and 2 run** on a real machine. The first real Gemini diagnosis worked on 26 Nov.
+- **Milestone 3 is written and tested offline:** streaming Socratic tutor, mastery check, foundations
+  review. Not yet run against the real AI.
+- **New design ("Lab amber")** on every page: Anek type (one family for English, Telugu and Hindi),
+  JetBrains Mono numbers, the motion lab, the misconception map, the big results score.
+
+## Milestone 3: tutoring
+
+- Flow: diagnosis → `/session/[id]/tutor` → post-test. The tutor works through the foundations review
+  (score 3 or less) and then each misconception in `tutorQueue`, one at a time.
+- `app/api/tutor`: one tutor turn, streamed as plain text. The tutor opens the conversation, asks one
+  question per reply, never quotes post-test questions, and writes `[READY]` when the student has
+  explained the idea in their own words. Every turn is saved to `tutoring_events`.
+- `app/api/mastery`: "make" writes 3 questions, an independent solver call answers them, and only
+  questions where both agree are kept (at most 2). "submit" scores them on the server and grades the
+  student's own-words explanation. Saved to `mastery_checks` (a retry replaces the earlier attempt).
+- `app/api/tutor/action`: "done" or "skip" for the current idea. Skip is always available.
+- `lib/llm.ts` `streamText`: streaming for Gemini and Claude, with the same retries, fallback model
+  and logging as `complete`.
+- Five tutor languages: English, Telugu, Hindi, Telugu-English, Hindi-English (`LANGUAGE_RULE` in
+  `lib/prompts.ts`). Questions always stay in English.
+
+## Fixes from the first real AI test
+
+- Chip-only reasons ("I pictured the motion") are no longer sent to the AI as evidence
+  (`lib/reasons.ts`), and the prompt says generic phrases are too vague. Chips are now sentence starters.
+- Every screen numbers questions as the student saw them (`lib/labels.ts`): Q01 to Q10.
+- When most answers were guesses, diagnosis says "Not enough evidence yet" instead of "No misconceptions".
+
+## Checked offline
+
+- Type check of all app code; diagnosis, reasons and streaming tests; tutoring plan against a real
+  SQLite file; every page rendered in a browser with sample data at desktop and phone width.
+
+## Watch during the study
+
+- Free-tier limits: one student uses roughly 15 to 25 AI calls (diagnosis, about 5 tutor turns per idea,
+  3 calls per mastery check). Check `llm_calls` for `rate_limited` errors after the first few students.
 
 ## Milestone 2: AI diagnosis
 
@@ -96,7 +130,7 @@ The project now needs Node 22.13 or newer.
 5. Try all correct, all wrong, and "I guessed" answers, and check the results table.
 6. Check at 400px wide on a phone.
 
-## Next steps, in order (milestone 3 onwards)
+## Next steps
 
 1. **Streaming tutor**: add `stream` to `lib/llm.ts`, a tutor prompt in `lib/prompts.ts`, an API route that
    streams one reply, and `app/session/[id]/tutor` working through `tutorQueue`, saving to `tutoring_events`.

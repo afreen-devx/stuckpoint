@@ -275,3 +275,162 @@ export async function completeJSON<T>(
   }
   throw new LlmError("invalid_json", "The AI did not return usable JSON.");
 }
+
+/* ---------- Streaming (tutor replies) ---------- */
+
+type Usage = { input: number; output: number };
+
+/** Open a streaming request. Returns the raw response so the caller can check the status first. */
+async function openStream(provider: Provider, model: string, apiKey: string, request: LlmRequest): Promise<Response> {
+  const google = provider === "google";
+  const url = google
+    ? `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`
+    : "https://api.anthropic.com/v1/messages";
+  const headers: Record<string, string> = google
+    ? { "x-goog-api-key": apiKey }
+    : { "x-api-key": apiKey, "anthropic-version": "2023-06-01" };
+  const body = google
+    ? {
+        system_instruction: { parts: [{ text: request.system }] },
+        contents: request.messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
+        generationConfig: { maxOutputTokens: request.maxTokens ?? 8000 },
+      }
+    : { model, max_tokens: request.maxTokens ?? 8000, system: request.system, messages: request.messages, stream: true };
+  try {
+    return await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (error) {
+    const timedOut = error instanceof Error && error.name === "TimeoutError";
+    throw new LlmError(timedOut ? "timeout" : "http_error", timedOut ? "The AI took too long to answer." : "Could not reach the AI service.");
+  }
+}
+
+/** Read server-sent events and pass each piece of answer text on. Thinking parts are skipped. */
+async function readStream(res: Response, provider: Provider, onText: (piece: string) => void, usage: Usage): Promise<string> {
+  if (!res.body) throw new LlmError("bad_response", "The AI returned an empty answer.");
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+
+  const handle = (line: string) => {
+    if (!line.startsWith("data:")) return;
+    const payload = line.slice(5).trim();
+    if (!payload || payload === "[DONE]") return;
+    let event: Record<string, unknown>;
+    try {
+      event = JSON.parse(payload);
+    } catch {
+      return;
+    }
+    let piece = "";
+    if (provider === "google") {
+      const e = event as GeminiResponse;
+      for (const part of e.candidates?.[0]?.content?.parts ?? []) if (!part.thought && part.text) piece += part.text;
+      if (e.usageMetadata) {
+        usage.input = e.usageMetadata.promptTokenCount ?? usage.input;
+        usage.output = e.usageMetadata.candidatesTokenCount ?? usage.output;
+      }
+      if (e.error?.message) throw new LlmError("http_error", `The AI stopped: ${e.error.message}`);
+    } else {
+      const e = event as {
+        type?: string;
+        delta?: { type?: string; text?: string };
+        message?: { usage?: { input_tokens?: number } };
+        usage?: { output_tokens?: number };
+        error?: { message?: string };
+      };
+      if (e.type === "content_block_delta" && e.delta?.type === "text_delta" && e.delta.text) piece = e.delta.text;
+      if (e.type === "message_start") usage.input = e.message?.usage?.input_tokens ?? 0;
+      if (e.type === "message_delta") usage.output = e.usage?.output_tokens ?? usage.output;
+      if (e.type === "error") throw new LlmError("http_error", `The AI stopped: ${e.error?.message ?? "unknown error"}`);
+    }
+    if (piece) {
+      text += piece;
+      onText(piece);
+    }
+  };
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (value) buffer += decoder.decode(value, { stream: true });
+    let newline = buffer.indexOf("\n");
+    while (newline !== -1) {
+      handle(buffer.slice(0, newline).replace(/\r$/, ""));
+      buffer = buffer.slice(newline + 1);
+      newline = buffer.indexOf("\n");
+    }
+    if (done) break;
+  }
+  if (buffer) handle(buffer.trim());
+  return text.trim();
+}
+
+/**
+ * Stream one reply, calling onText with each new piece as it arrives. Returns the full text.
+ * Busy replies are retried and fall back to LLM_FALLBACK_MODEL before any text is sent.
+ * Every call is logged, like complete().
+ */
+export async function streamText(ctx: CallContext, request: LlmRequest, onText: (piece: string) => void): Promise<string> {
+  const s = settings();
+  if (!isProvider(s.provider)) {
+    throw new LlmError("unsupported_provider", `LLM_PROVIDER "${s.provider}" is not supported. Use google or anthropic.`);
+  }
+  if (!s.model || !s.apiKey) {
+    throw new LlmError("not_configured", "The AI is not set up. Add LLM_MODEL and LLM_API_KEY to .env.");
+  }
+  const provider: Provider = s.provider;
+  const models = [s.model];
+  if (s.fallbackModel && s.fallbackModel !== s.model) models.push(s.fallbackModel);
+
+  const started = Date.now();
+  const usage: Usage = { input: 0, output: 0 };
+  let usedModel = s.model;
+  let errorCode: string | null = null;
+
+  try {
+    let lastError: LlmError | null = null;
+    for (const model of models) {
+      usedModel = model;
+      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+        if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1]);
+        const res = await openStream(provider, model, s.apiKey, request);
+        if (res.ok) {
+          const text = await readStream(res, provider, onText, usage);
+          if (!text) throw new LlmError("bad_response", "The AI returned an empty answer.");
+          return text;
+        }
+        const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+        lastError =
+          res.status === 429
+            ? new LlmError("rate_limited", "The AI's free limit was reached. Wait a minute and try again.")
+            : new LlmError("http_error", `The AI service returned ${res.status}.${data.error?.message ? ` ${data.error.message}` : ""}`);
+        if (!TRANSIENT.has(res.status)) throw lastError;
+      }
+    }
+    throw lastError ?? new LlmError("http_error", "The AI service is busy. Try again in a minute.");
+  } catch (error) {
+    errorCode = error instanceof LlmError ? error.code : "unknown";
+    throw error;
+  } finally {
+    try {
+      logLlmCall({
+        sessionId: ctx.sessionId,
+        studyGroup: ctx.studyGroup,
+        purpose: ctx.purpose,
+        model: `${provider}/${usedModel}`,
+        latencyMs: Date.now() - started,
+        inputTokens: usage.input,
+        outputTokens: usage.output,
+        ok: errorCode === null,
+        errorCode,
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+}

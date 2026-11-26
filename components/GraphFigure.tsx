@@ -3,6 +3,7 @@ import type { GraphSpec } from "@/lib/pack";
 /**
  * Draws a graph from the pack spec as plain SVG.
  * No crosshair or value readout on test questions: reading values is a skill being tested.
+ * Lines draw themselves in once and then stay still, so the animation never hints at an answer.
  */
 export default function GraphFigure({
   spec,
@@ -26,7 +27,7 @@ export default function GraphFigure({
   const tickText = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(1));
 
   const caption = spec.yLabel.trim().toLowerCase().startsWith("x") ? "Position-time" : "Velocity-time";
-  const colours = ["var(--accent)", "var(--heading)"];
+  const colours = ["var(--accent)", "var(--data)"];
 
   return (
     <figure className="figure">
@@ -95,7 +96,7 @@ export default function GraphFigure({
         <text x={px(spec.xMax)} y={height - 6} textAnchor="end" fill="var(--muted)" fontSize="11" fontFamily="var(--mono)">
           {spec.xLabel}
         </text>
-        <text x={4} y={padTop - 4} fill="var(--muted)" fontSize="11" fontFamily="var(--mono)">
+        <text x={px(0) + 8} y={py(spec.yMax) + 14} fill="var(--muted)" fontSize="11" fontFamily="var(--mono)">
           {spec.yLabel}
         </text>
 
@@ -131,7 +132,16 @@ export default function GraphFigure({
           const last = line.points[line.points.length - 1];
           return (
             <g key={lineIndex}>
-              <path d={path} fill="none" stroke={colours[lineIndex % colours.length]} strokeWidth="2" />
+              <path
+                className={`trace trace-${lineIndex + 1}`}
+                d={path}
+                pathLength={1}
+                fill="none"
+                stroke={colours[lineIndex % colours.length]}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
               {line.label ? (
                 <text
                   x={px(last[0]) - 6}

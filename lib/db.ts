@@ -355,3 +355,54 @@ export function saveDiagnosisRun(input: {
     throw error;
   }
 }
+
+/* ---------- Tutoring ---------- */
+
+/** One line of a tutoring conversation, or a marker such as a skipped idea or a generated check. */
+export function addTutoringEvent(input: {
+  sessionId: string;
+  studyGroup: StudyGroup;
+  code: string;
+  role: "student" | "tutor" | "check" | "skip" | "done";
+  message: string;
+}): void {
+  getDb()
+    .prepare(
+      `INSERT INTO tutoring_events (session_id, study_group, code, role, message, created_at)
+       VALUES (@sessionId, @studyGroup, @code, @role, @message, @createdAt)`,
+    )
+    .run({ ...input, createdAt: now() });
+}
+
+/** Save the mastery check for one idea. A retry replaces the earlier attempt. */
+export function saveMasteryCheck(input: {
+  sessionId: string;
+  studyGroup: StudyGroup;
+  code: string;
+  q1Correct: number;
+  q2Correct: number;
+  explainPass: boolean;
+  mastered: boolean;
+  explanation: string;
+}): void {
+  getDb()
+    .prepare(
+      `INSERT INTO mastery_checks
+         (session_id, study_group, code, q1_correct, q2_correct, explain_pass, mastered, explanation, created_at)
+       VALUES (@sessionId, @studyGroup, @code, @q1Correct, @q2Correct, @explainPass, @mastered, @explanation, @createdAt)
+       ON CONFLICT (session_id, code) DO UPDATE SET
+         q1_correct = excluded.q1_correct, q2_correct = excluded.q2_correct, explain_pass = excluded.explain_pass,
+         mastered = excluded.mastered, explanation = excluded.explanation, created_at = excluded.created_at`,
+    )
+    .run({
+      sessionId: input.sessionId,
+      studyGroup: input.studyGroup,
+      code: input.code,
+      q1Correct: input.q1Correct,
+      q2Correct: input.q2Correct,
+      explainPass: input.explainPass ? 1 : 0,
+      mastered: input.mastered ? 1 : 0,
+      explanation: input.explanation,
+      createdAt: now(),
+    });
+}

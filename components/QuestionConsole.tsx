@@ -1,6 +1,5 @@
 "use client";
 
-import CornerMarks from "./CornerMarks";
 import GraphFigure from "./GraphFigure";
 import OptionList from "./OptionList";
 import QuestionRail from "./QuestionRail";
@@ -44,9 +43,7 @@ export default function QuestionConsole(props: Props) {
   const figureNumber = String(props.index + 1).padStart(2, "0");
 
   return (
-    <div className="console-wrap">
-      <CornerMarks />
-      <section className="console" aria-label={`${props.phaseLabel} question ${props.index + 1}`}>
+    <section className="console" aria-label={`${props.phaseLabel} question ${props.index + 1}`}>
         <QuestionRail
           index={props.index}
           total={props.total}
@@ -65,8 +62,10 @@ export default function QuestionConsole(props: Props) {
           {/* key={qid} remounts the pane so the slide animation plays on every question. */}
           <div className="pane-body" key={props.qid} data-dir={props.dir}>
             <div className="pane-top">
-              <span className="tag">{props.phaseLabel}</span>
-              <span className="kbd-hint">Keys A B C D · Enter next · Esc back</span>
+              <span className="tag">
+                {props.phaseLabel} · Q{figureNumber}
+              </span>
+              <span className="kbd-hint">A B C D to choose · Enter next · Esc back</span>
             </div>
 
             <h1 className="stem" id="stem">
@@ -107,7 +106,7 @@ export default function QuestionConsole(props: Props) {
                 onClick={props.onNext}
                 disabled={props.choice === null || props.busy}
               >
-                {props.busy ? "Saving" : props.nextLabel} <span aria-hidden="true">→</span>{" "}
+                {props.busy ? "Saving" : props.nextLabel} <span className="arr" aria-hidden="true">→</span>{" "}
                 <kbd className="kbd" aria-hidden="true">
                   ↵
                 </kbd>
@@ -121,7 +120,6 @@ export default function QuestionConsole(props: Props) {
             ) : null}
           </div>
         </div>
-      </section>
-    </div>
+    </section>
   );
 }

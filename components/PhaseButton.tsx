@@ -42,7 +42,7 @@ export default function PhaseButton({
   return (
     <div className="form-actions">
       <button type="button" className="btn-primary" onClick={go} disabled={busy}>
-        {busy ? "Opening" : children} <span aria-hidden="true">→</span>
+        {busy ? "Opening" : children} <span className="arr" aria-hidden="true">→</span>
       </button>
       {error ? (
         <p className="error-text" role="alert">

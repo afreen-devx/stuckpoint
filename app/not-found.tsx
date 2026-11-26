@@ -3,7 +3,7 @@ import Panel from "@/components/Panel";
 
 export default function NotFound() {
   return (
-    <main className="shell setup-shell">
+    <main className="shell">
       <Panel>
         <p className="eyebrow">404</p>
         <h1 className="page-title">This page or session does not exist</h1>

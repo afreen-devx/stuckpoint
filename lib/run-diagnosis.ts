@@ -4,6 +4,7 @@ import { computeDiagnosis, type Diagnosis, type DiagnosisAnswer, type ReasonVerd
 import { completeJSON, llmConfigured, LlmError } from "./llm";
 import { loadPack } from "./pack";
 import { diagnosisPrompt } from "./prompts";
+import { substantiveReason } from "./reasons";
 
 const VerdictsSchema = z.array(
   z.object({
@@ -34,9 +35,9 @@ export async function getOrRunDiagnosis(session: SessionRow): Promise<Diagnosis>
     guess: a.guess === 1,
   }));
 
-  // Only reasons worth reading go to the AI: written, and not already marked as a guess.
+  // Only reasons worth reading go to the AI: not a guess, and saying more than a chip on its own.
   const items = answers
-    .filter((a) => a.reason.trim().length > 0 && !a.guess && a.choice !== null)
+    .filter((a) => !a.guess && a.choice !== null && substantiveReason(a.reason) !== "")
     .map((a) => ({ qid: a.qid, choice: a.choice as number, reason: a.reason.trim() }));
 
   let verdicts: ReasonVerdict[] | null = null;
@@ -44,7 +45,7 @@ export async function getOrRunDiagnosis(session: SessionRow): Promise<Diagnosis>
   let store = true;
 
   if (items.length === 0) {
-    note = "No reasons were written, so this diagnosis uses your answer choices only.";
+    note = "No reasons said enough to read, so this diagnosis uses your answer choices only.";
   } else if (!llmConfigured()) {
     note = "The AI is not set up yet, so this diagnosis uses your answer choices only.";
   } else {

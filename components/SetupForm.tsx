@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import type { Language } from "@/lib/types";
 
 const LANGUAGES: { value: Language; label: string; native: string }[] = [
-  { value: "en", label: "English", native: "Simple English" },
-  { value: "te", label: "Telugu", native: "తెలుగు" },
-  { value: "mix", label: "Telugu-English mix", native: "Telugu in English letters" },
+  { value: "en", label: "English", native: "EN" },
+  { value: "te", label: "తెలుగు", native: "Telugu" },
+  { value: "hi", label: "हिन्दी", native: "Hindi" },
+  { value: "mix", label: "Telugu + English", native: "in English letters" },
+  { value: "hinglish", label: "Hindi + English", native: "in English letters" },
 ];
 
 /** A random anonymous id like S382. Never a name. */
@@ -71,10 +73,11 @@ export default function SetupForm({ studyMode }: { studyMode: boolean }) {
   }
 
   return (
-    <form onSubmit={start} noValidate>
-      <div className="field">
+    <form className="setup-form" onSubmit={start} noValidate>
+      <div>
         <label className="label" htmlFor="student-id">
-          Student ID
+          <span>Student ID</span>
+          <span className="label-aside">anonymous · 2 to 8 letters or numbers</span>
         </label>
         <div className="input-row">
           <input
@@ -89,33 +92,37 @@ export default function SetupForm({ studyMode }: { studyMode: boolean }) {
             aria-invalid={studentId.length > 0 && !idValid}
           />
           <button type="button" className="btn-ghost" onClick={() => setStudentId(newStudentId())}>
-            New
+            New ID
           </button>
         </div>
-        <p className="hint" id="student-id-hint">
-          Anonymous, 2 to 8 letters or numbers. No names or emails. Keep it if you are in the class study.
+        <p className="hint" id="student-id-hint" style={{ marginTop: 8 }}>
+          No names or emails. Keep this ID if you are in the class study.
         </p>
       </div>
 
-      <div className="field">
+      <div>
         <label className="label" htmlFor="class-code">
-          Class code (optional)
+          <span>Class code</span>
+          <span className="label-aside">optional</span>
         </label>
-        <input
-          id="class-code"
-          className="input"
-          value={classCode}
-          onChange={(e) => setClassCode(clean(e.target.value, 12))}
-          autoComplete="off"
-          spellCheck={false}
-          maxLength={12}
-          placeholder="From your teacher, if you have one"
-        />
+        <div className="input-row">
+          <input
+            id="class-code"
+            className="input is-small"
+            value={classCode}
+            onChange={(e) => setClassCode(clean(e.target.value, 12))}
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={12}
+            placeholder="From your teacher, if you have one"
+          />
+        </div>
       </div>
 
-      <div className="field">
+      <div>
         <span className="label" id="language-label">
-          Tutor language
+          <span>Tutor language</span>
+          <span className="label-aside">questions stay in English</span>
         </span>
         <div className="lang-grid" role="radiogroup" aria-labelledby="language-label" onKeyDown={onLanguageKey}>
           {LANGUAGES.map((option) => (
@@ -133,7 +140,6 @@ export default function SetupForm({ studyMode }: { studyMode: boolean }) {
             </button>
           ))}
         </div>
-        <p className="hint">Questions stay in English. The tutor explains in the language you pick.</p>
       </div>
 
       {studyMode ? (
@@ -155,9 +161,9 @@ export default function SetupForm({ studyMode }: { studyMode: boolean }) {
 
       <div className="form-actions">
         <button type="submit" className="btn-primary" disabled={!canStart}>
-          {busy ? "Starting" : "Start the pre-test"} <span aria-hidden="true">→</span>
+          {busy ? "Starting" : "Start the pre-test"} <span className="arr" aria-hidden="true">→</span>
         </button>
-        <span className="hint">10 questions. Scored against fixed answers, never by the AI.</span>
+        <span className="hint">Scored against fixed answers, never by the AI.</span>
       </div>
     </form>
   );

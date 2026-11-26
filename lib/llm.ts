@@ -48,6 +48,7 @@ function settings() {
   return {
     provider: (process.env.LLM_PROVIDER ?? "google").trim().toLowerCase(),
     model: (process.env.LLM_MODEL ?? "").trim(),
+    fallbackModel: (process.env.LLM_FALLBACK_MODEL ?? "").trim(),
     apiKey: (process.env.LLM_API_KEY ?? "").trim(),
   };
 }
@@ -63,6 +64,11 @@ export function llmConfigured(): boolean {
 }
 
 const TIMEOUT_MS = 90_000;
+/** Waits before each retry of a busy reply. Kept short so a student is not left waiting long. */
+const RETRY_DELAYS_MS = [2_000, 5_000];
+/** Statuses that usually clear up by themselves: rate limit, server error, overloaded. */
+const TRANSIENT = new Set([429, 500, 502, 503, 504]);
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 type LlmRequest = { system: string; messages: ChatMessage[]; maxTokens?: number };
 type Reply = { status: number; ok: boolean; data: unknown };
@@ -179,22 +185,38 @@ export async function complete(ctx: CallContext, request: LlmRequest): Promise<s
   let inputTokens = 0;
   let outputTokens = 0;
   let errorCode: string | null = null;
+  let usedModel = s.model;
+
+  // Busy or rate-limited replies usually clear quickly: wait and retry, then try the
+  // fallback model (LLM_FALLBACK_MODEL) if one is set.
+  const models = [s.model];
+  if (s.fallbackModel && s.fallbackModel !== s.model) models.push(s.fallbackModel);
+  const call = s.provider === "google" ? callGemini : callAnthropic;
 
   try {
-    const call = s.provider === "google" ? callGemini : callAnthropic;
-    const { reply, parsed } = await call(s.model, s.apiKey, request);
-    inputTokens = parsed.inputTokens;
-    outputTokens = parsed.outputTokens;
+    let lastError: LlmError | null = null;
+    for (const model of models) {
+      usedModel = model;
+      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+        if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1]);
+        const { reply, parsed } = await call(model, s.apiKey, request);
+        inputTokens += parsed.inputTokens;
+        outputTokens += parsed.outputTokens;
 
-    if (reply.status === 429) {
-      throw new LlmError("rate_limited", "The AI's free limit was reached. Wait a minute and try again.");
+        if (reply.ok) {
+          if (!parsed.text) throw new LlmError("bad_response", "The AI returned an empty answer.");
+          return parsed.text;
+        }
+        if (reply.status === 429) {
+          lastError = new LlmError("rate_limited", "The AI's free limit was reached. Wait a minute and try again.");
+        } else {
+          const detail = parsed.errorMessage ? ` ${parsed.errorMessage}` : "";
+          lastError = new LlmError("http_error", `The AI service returned ${reply.status}.${detail}`);
+        }
+        if (!TRANSIENT.has(reply.status)) throw lastError;
+      }
     }
-    if (!reply.ok) {
-      const detail = parsed.errorMessage ? ` ${parsed.errorMessage}` : "";
-      throw new LlmError("http_error", `The AI service returned ${reply.status}.${detail}`);
-    }
-    if (!parsed.text) throw new LlmError("bad_response", "The AI returned an empty answer.");
-    return parsed.text;
+    throw lastError ?? new LlmError("http_error", "The AI service is busy. Try again in a minute.");
   } catch (error) {
     errorCode = error instanceof LlmError ? error.code : "unknown";
     throw error;
@@ -205,7 +227,7 @@ export async function complete(ctx: CallContext, request: LlmRequest): Promise<s
         sessionId: ctx.sessionId,
         studyGroup: ctx.studyGroup,
         purpose: ctx.purpose,
-        model: `${s.provider}/${s.model}`,
+        model: `${s.provider}/${usedModel}`,
         latencyMs: Date.now() - started,
         inputTokens,
         outputTokens,

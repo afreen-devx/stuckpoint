@@ -1,5 +1,5 @@
 """
-Builds packs/KIN-02.json. Every number in a correct option, and every number in a wrong option,
+Builds packs/KIN-02.json: pre-test (A), post-test (B) and retention test (C). Every number in a correct option, and every number in a wrong option,
 is computed here from the physics (g = 10 m/s^2). A mismatch stops the build.
 Option order is fixed per question so the correct letter is spread across A to D.
 """
@@ -198,10 +198,95 @@ q("Q20", f"A stone is thrown with a horizontal velocity of {vx} m/s and an upwar
    ("Zero velocity, and zero acceleration", "M1"),
    (f"{vx} m/s horizontal, and zero acceleration", "M1")], correct_at=2)
 
+
+# ======================= Retention set C (Q21 to Q30) =======================
+# Taken 3 to 4 days after the post-test. New situations, same ten misconceptions.
+
+u, t = 4.0, 2.0
+a = u / t; close(a, 2)
+q("Q21", f"A lift moving up at {fmt(u)} m/s slows evenly, stops after {fmt(t)} s, and then starts moving down. At the instant it stops, its acceleration is:",
+  [(f"{fmt(a)} m/s² downward", None),
+   ("Zero, because it is not moving", "M1"),
+   (f"{fmt(a)} m/s² upward", "M3"),
+   (f"{fmt(u * t)} m/s² downward", "C0")], correct_at=1)
+
+u, a, t = -8.0, -3.0, 2.0
+v = u + a * t; close(v, -14)
+q("Q22", f"Taking right as positive, a scooter moving left at {fmt(abs(u))} m/s has an acceleration of −{fmt(abs(a))} m/s². What is its speed after {fmt(t)} s?",
+  [(f"{fmt(abs(v))} m/s, it has sped up", None),
+   (f"{fmt(abs(u) + a * t)} m/s, the negative acceleration slowed it", "M2"),
+   (f"{fmt(abs(v))} m/s, but it has slowed down since −14 is less than −8", "M6"),
+   (f"{fmt(abs(u) + abs(a))} m/s, it has sped up", "C0")], correct_at=2)
+
+u, v, t = 20.0, 8.0, 3.0
+a = (u - v) / t; close(a, 4)
+q("Q23", f"A car moving north at {fmt(u)} m/s slows evenly to {fmt(v)} m/s in {fmt(t)} s. Its acceleration is:",
+  [(f"{fmt(a)} m/s² south", None),
+   (f"{fmt(a)} m/s² north, the way it is moving", "M3"),
+   ("Zero, because it is still moving north", "M3"),
+   (f"{fmt(u / t)} m/s² south", "C0")], correct_at=3)
+
+GRAPHS["q24"] = {"xLabel": "t (s)", "yLabel": "v (m/s)", "xMax": 8, "yMax": 16,
+                 "lines": [{"points": [[0, 0], [4, 12], [8, 12]]}]}
+q("Q24", "The velocity-time graph of a sprinter is shown. Between t = 4 s and t = 8 s, the sprinter:",
+  [("Runs at a steady 12 m/s", None),
+   ("Runs along a flat stretch of ground", "M4"),
+   ("Stands still, because the line is flat", "M5"),
+   (f"Speeds up at {fmt(12 / 4)} m/s²", "C0")], graph="q24", correct_at=0)
+
+GRAPHS["q25"] = {"xLabel": "t (s)", "yLabel": "v (m/s)", "xMax": 4, "yMax": 20,
+                 "lines": [{"points": [[0, 0], [4, 20]]}]}
+acc = 20 / 4; close(acc, 5)
+q("Q25", "The velocity-time graph of a motorbike starting from rest is shown. What is its acceleration?",
+  [(f"{fmt(acc)} m/s²", None),
+   ("20 m/s²", "M5"),
+   (f"{fmt(0.5 * 4 * 20)} m/s²", "M5"),
+   (f"{fmt(4 / 20)} m/s²", "C0")], graph="q25", correct_at=2)
+
+d, minutes = 3, 10
+hours = minutes / 60
+q("Q26", f"A car drives {d} km east and then {d} km back west to where it started, taking {minutes} minutes in total. Find its average speed and average velocity.",
+  [(f"{fmt(2 * d / hours)} km/h and 0", None),
+   (f"{fmt(2 * d / hours)} km/h and {fmt(2 * d / hours)} km/h", "M6"),
+   ("0 and 0", "M6"),
+   (f"{fmt(d / hours)} km/h and 0", "C0")], correct_at=1)
+
+s, v1, v2 = 120, 40, 120
+avg = 2 * s / (s / v1 + s / v2); close(avg, 60)
+q("Q27", f"A train covers {s} km at {v1} km/h and then another {s} km at {v2} km/h. What is its average speed for the whole journey?",
+  [(f"{fmt(avg)} km/h", None),
+   (f"{fmt((v1 + v2) / 2)} km/h", "M7"),
+   (f"{fmt(v1 + v2)} km/h", "C0"),
+   (f"{fmt(v1)} km/h", "C0")], correct_at=3)
+
+h = 80
+tf = math.sqrt(2 * h / G); close(tf, 4)
+q("Q28", f"A 0.16 kg cricket ball and a 7 kg shot put are dropped together from {h} m. Ignore air resistance. When does each land?",
+  [(f"Both land after {fmt(tf)} s", None),
+   ("The shot put lands first, well ahead of the ball", "M8"),
+   ("The shot put lands first, but only just", "M8"),
+   (f"Both land after {fmt(h / G)} s", "C0")], correct_at=0)
+
+h, va, vb = 0.8, 1.0, 3.0
+tf = math.sqrt(2 * h / G); close(tf, 0.4)
+q("Q29", f"Two marbles roll off a table {fmt(h)} m high at the same moment, one at {fmt(va)} m/s and one at {fmt(vb)} m/s. Ignore air resistance. Which is right?",
+  [(f"Both land after {fmt(tf)} s, {fmt(va * tf)} m and {fmt(vb * tf)} m from the table", None),
+   ("The faster marble takes longer to land", "M9"),
+   ("The faster marble lands sooner", "M9"),
+   (f"Both land after {fmt(tf)} s, {fmt(va)} m and {fmt(vb)} m from the table", "C0")], correct_at=2)
+
+u = 30
+vx = u * 0.6; close(vx, 18)
+q("Q30", f"A ball is thrown at {u} m/s at an angle where cos θ = 0.6 and sin θ = 0.8. Ignore air resistance. What is its speed at the highest point?",
+  [(f"{fmt(vx)} m/s, moving horizontally", None),
+   ("0 m/s, it stops at the top", "M10"),
+   (f"{fmt(u * 0.8)} m/s, moving horizontally", "C0"),
+   (f"{fmt(u)} m/s, the speed does not change", "C0")], correct_at=1)
+
 # ---------- every value a graph question needs must sit on a grid line ----------
 def on_grid(g, x, y):
     return abs((x / (g["xMax"] / 4)) - round(x / (g["xMax"] / 4))) < 1e-9 and abs((y / (g["yMax"] / 4)) - round(y / (g["yMax"] / 4))) < 1e-9
-for name, needed in {"q7": [(10, 0)], "q8": [(4, 10), (8, 0)], "q9": [(6, 18)], "q10": [(0, 10), (5, 40)]}.items():
+for name, needed in {"q7": [(10, 0)], "q8": [(4, 10), (8, 0)], "q9": [(6, 18)], "q10": [(0, 10), (5, 40)], "q24": [(4, 12), (8, 12)], "q25": [(4, 20)]}.items():
     for x, y in needed:
         assert on_grid(GRAPHS[name], x, y), (name, x, y)
         assert any(abs(px - x) < 1e-9 and abs(py - y) < 1e-9 for px, py in GRAPHS[name]["lines"][0]["points"]), (name, x, y)
@@ -209,10 +294,11 @@ for name, needed in {"q7": [(10, 0)], "q8": [(4, 10), (8, 0)], "q9": [(6, 18)], 
 # ---------- assemble ----------
 A = [f"Q{i}" for i in range(1, 21, 2)]
 B = [f"Q{i}" for i in range(2, 21, 2)]
-for name, s in (("A", A), ("B", B)):
+C = [f"Q{i}" for i in range(21, 31)]
+for name, s in (("A", A), ("B", B), ("C", C)):
     codes = {t for qid in s for t in Q[qid]["tags"] if t and t != "C0"}
     assert codes == {f"M{i}" for i in range(1, 11)}, (name, codes)
-letters = [Q[qid]["tags"].index(None) for qid in A + B]
+letters = [Q[qid]["tags"].index(None) for qid in A + B + C]
 print("correct letters A..D counts:", [letters.count(i) for i in range(4)])
 pack = {
     "id": "KIN-02",
@@ -221,7 +307,7 @@ pack = {
     "misconceptions": base["misconceptions"],
     "graphs": GRAPHS,
     "questions": Q,
-    "sets": {"A_pre": A, "B_post": B, "C_retention": []},
+    "sets": {"A_pre": A, "B_post": B, "C_retention": C},
     "foundations": base["foundations"],
 }
 json.dump(pack, open(sys.argv[2], "w"), ensure_ascii=False, indent=2)

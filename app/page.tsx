@@ -1,4 +1,5 @@
 import MotionLab from "@/components/MotionLab";
+import RetentionLookup from "@/components/RetentionLookup";
 import SetupForm from "@/components/SetupForm";
 
 // Read STUDY_MODE on every request, not once at build time.
@@ -20,6 +21,7 @@ export default function SetupPage() {
             misconception behind each mistake, tutors that one idea, and checks it with ten new questions.
           </p>
           <SetupForm studyMode={studyMode} />
+          <RetentionLookup />
         </section>
         <section className="enter" aria-label="Motion lab demonstration">
           {/* A plain drop from 30 m: chosen so it does not answer any test question. */}

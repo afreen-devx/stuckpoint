@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import MisconceptionMap, { type MapTile } from "@/components/MisconceptionMap";
 import MotionLab from "@/components/MotionLab";
 import Panel from "@/components/Panel";
+import PhaseButton from "@/components/PhaseButton";
 import { getAnswers, getSession, type AnswerRow } from "@/lib/db";
 import { questionLabel } from "@/lib/labels";
 import { loadPack, retentionAvailable } from "@/lib/pack";
@@ -32,6 +33,9 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
   const pack = loadPack();
   const pre = await getAnswers(session.id, "pretest");
   const post = await getAnswers(session.id, "posttest");
+  const retention = await getAnswers(session.id, "retention");
+  const retentionDone = retention.length > 0 && retention.filter((a) => a.choice !== null).length === pack.sets.C_retention.length;
+  const retentionScore = countCorrect(retention);
   const preScore = countCorrect(pre);
   const postScore = countCorrect(post);
   const before = codesShown(pre);
@@ -69,11 +73,20 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
               →
             </span>
             <span className="delta-n is-post">{postScore}</span>
+            {retentionDone ? (
+              <>
+                <span className="delta-arr" aria-hidden="true">
+                  →
+                </span>
+                <span className="delta-n is-ret">{retentionScore}</span>
+              </>
+            ) : null}
             <span className="delta-of">/ {post.length}</span>
           </div>
           <div className="delta-l" aria-hidden="true">
             <span>Pre-test · Set A</span>
             <span>Post-test · Set B</span>
+            {retentionDone ? <span>Retention · Set C</span> : null}
           </div>
           <p className="lede">
             {summary}
@@ -162,16 +175,29 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
               They still count towards the scores.
             </p>
           ) : null}
+          {retentionDone ? (
+            <p className="hint">
+              Retention test: {retentionScore} of {retention.length}, taken days later on questions never seen before.
+            </p>
+          ) : retentionAvailable(pack) ? (
+            <p className="hint">
+              Retention test: come back in 3 to 4 days and enter your student ID,{" "}
+              <span className="mono">{session.student_id}</span>, on the start page. It checks the learning lasted.
+            </p>
+          ) : (
+            <p className="hint">Retention test: not available yet.</p>
+          )}
           <p className="hint">
-            Retention test:{" "}
-            {retentionAvailable(pack) ? "take it 3 to 4 days from now." : "not available yet. The question set is still being written."}
-          </p>
-          <p className="hint">
-            One session is early evidence, not proof. Both tests are scored against fixed answers, never by the AI.
+            One session is early evidence, not proof. Every test is scored against fixed answers, never by the AI.
           </p>
         </div>
         <div className="form-actions">
-          <a className="btn-primary" href={`/api/export?id=${session.id}`}>
+          {!retentionDone && retentionAvailable(pack) ? (
+            <PhaseButton sessionId={session.id} to="retention">
+              Take the retention test
+            </PhaseButton>
+          ) : null}
+          <a className={retentionDone || !retentionAvailable(pack) ? "btn-primary" : "btn-quiet"} href={`/api/export?id=${session.id}`}>
             Download session log (CSV)
           </a>
           <Link className="btn-quiet" href="/">

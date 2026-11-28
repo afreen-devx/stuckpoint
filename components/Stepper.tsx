@@ -21,7 +21,7 @@ export default function Stepper() {
   const segment = pathname.split("/").filter(Boolean).pop() ?? "";
   const current = Math.max(
     0,
-    STEPS.findIndex((step) => step.slug === segment || (segment === "mastery" && step.slug === "tutor")),
+    STEPS.findIndex((step) => step.slug === segment || (segment === "mastery" && step.slug === "tutor") || (segment === "retention" && step.slug === "results")),
   );
 
   return (

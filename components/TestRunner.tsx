@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import QuestionConsole from "./QuestionConsole";
 import type { GraphSpec } from "@/lib/pack";
-import { LANGUAGE_LABEL, type Language, type TestPhase } from "@/lib/types";
+import { LANGUAGE_LABEL, TEST_LABEL, type Language, type TestPhase } from "@/lib/types";
 
 export type TestQuestion = {
   qid: string;
@@ -210,15 +210,15 @@ export default function TestRunner({
   }, [onKey]);
 
   const isLast = index === questions.length - 1;
-  const finishLabel = isPre ? "Finish pre-test" : "Finish post-test";
+  const finishLabel = `Finish ${TEST_LABEL[phase].toLowerCase()}`;
 
   return (
     <QuestionConsole
       qid={question.qid}
       index={index}
       total={questions.length}
-      setLabel={isPre ? "Set A" : "Set B"}
-      phaseLabel={isPre ? "Pre-test" : "Post-test"}
+      setLabel={phase === "pretest" ? "Set A" : phase === "posttest" ? "Set B" : "Set C"}
+      phaseLabel={TEST_LABEL[phase]}
       studentId={studentId}
       languageLabel={LANGUAGE_LABEL[language]}
       stem={question.stem}

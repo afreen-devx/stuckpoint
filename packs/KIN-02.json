@@ -146,6 +146,50 @@
           ]
         }
       ]
+    },
+    "q24": {
+      "xLabel": "t (s)",
+      "yLabel": "v (m/s)",
+      "xMax": 8,
+      "yMax": 16,
+      "lines": [
+        {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              4,
+              12
+            ],
+            [
+              8,
+              12
+            ]
+          ]
+        }
+      ]
+    },
+    "q25": {
+      "xLabel": "t (s)",
+      "yLabel": "v (m/s)",
+      "xMax": 4,
+      "yMax": 20,
+      "lines": [
+        {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              4,
+              20
+            ]
+          ]
+        }
+      ]
     }
   },
   "questions": {
@@ -452,6 +496,158 @@
         null,
         "M1"
       ]
+    },
+    "Q21": {
+      "stem": "A lift moving up at 4 m/s slows evenly, stops after 2 s, and then starts moving down. At the instant it stops, its acceleration is:",
+      "options": [
+        "Zero, because it is not moving",
+        "2 m/s² downward",
+        "2 m/s² upward",
+        "8 m/s² downward"
+      ],
+      "tags": [
+        "M1",
+        null,
+        "M3",
+        "C0"
+      ]
+    },
+    "Q22": {
+      "stem": "Taking right as positive, a scooter moving left at 8 m/s has an acceleration of −3 m/s². What is its speed after 2 s?",
+      "options": [
+        "2 m/s, the negative acceleration slowed it",
+        "14 m/s, but it has slowed down since −14 is less than −8",
+        "14 m/s, it has sped up",
+        "11 m/s, it has sped up"
+      ],
+      "tags": [
+        "M2",
+        "M6",
+        null,
+        "C0"
+      ]
+    },
+    "Q23": {
+      "stem": "A car moving north at 20 m/s slows evenly to 8 m/s in 3 s. Its acceleration is:",
+      "options": [
+        "4 m/s² north, the way it is moving",
+        "Zero, because it is still moving north",
+        "6.7 m/s² south",
+        "4 m/s² south"
+      ],
+      "tags": [
+        "M3",
+        "M3",
+        "C0",
+        null
+      ]
+    },
+    "Q24": {
+      "stem": "The velocity-time graph of a sprinter is shown. Between t = 4 s and t = 8 s, the sprinter:",
+      "options": [
+        "Runs at a steady 12 m/s",
+        "Runs along a flat stretch of ground",
+        "Stands still, because the line is flat",
+        "Speeds up at 3 m/s²"
+      ],
+      "tags": [
+        null,
+        "M4",
+        "M5",
+        "C0"
+      ],
+      "graph": "q24"
+    },
+    "Q25": {
+      "stem": "The velocity-time graph of a motorbike starting from rest is shown. What is its acceleration?",
+      "options": [
+        "20 m/s²",
+        "40 m/s²",
+        "5 m/s²",
+        "0.2 m/s²"
+      ],
+      "tags": [
+        "M5",
+        "M5",
+        null,
+        "C0"
+      ],
+      "graph": "q25"
+    },
+    "Q26": {
+      "stem": "A car drives 3 km east and then 3 km back west to where it started, taking 10 minutes in total. Find its average speed and average velocity.",
+      "options": [
+        "36 km/h and 36 km/h",
+        "36 km/h and 0",
+        "0 and 0",
+        "18 km/h and 0"
+      ],
+      "tags": [
+        "M6",
+        null,
+        "M6",
+        "C0"
+      ]
+    },
+    "Q27": {
+      "stem": "A train covers 120 km at 40 km/h and then another 120 km at 120 km/h. What is its average speed for the whole journey?",
+      "options": [
+        "80 km/h",
+        "160 km/h",
+        "40 km/h",
+        "60 km/h"
+      ],
+      "tags": [
+        "M7",
+        "C0",
+        "C0",
+        null
+      ]
+    },
+    "Q28": {
+      "stem": "A 0.16 kg cricket ball and a 7 kg shot put are dropped together from 80 m. Ignore air resistance. When does each land?",
+      "options": [
+        "Both land after 4 s",
+        "The shot put lands first, well ahead of the ball",
+        "The shot put lands first, but only just",
+        "Both land after 8 s"
+      ],
+      "tags": [
+        null,
+        "M8",
+        "M8",
+        "C0"
+      ]
+    },
+    "Q29": {
+      "stem": "Two marbles roll off a table 0.8 m high at the same moment, one at 1 m/s and one at 3 m/s. Ignore air resistance. Which is right?",
+      "options": [
+        "The faster marble takes longer to land",
+        "The faster marble lands sooner",
+        "Both land after 0.4 s, 0.4 m and 1.2 m from the table",
+        "Both land after 0.4 s, 1 m and 3 m from the table"
+      ],
+      "tags": [
+        "M9",
+        "M9",
+        null,
+        "C0"
+      ]
+    },
+    "Q30": {
+      "stem": "A ball is thrown at 30 m/s at an angle where cos θ = 0.6 and sin θ = 0.8. Ignore air resistance. What is its speed at the highest point?",
+      "options": [
+        "0 m/s, it stops at the top",
+        "18 m/s, moving horizontally",
+        "24 m/s, moving horizontally",
+        "30 m/s, the speed does not change"
+      ],
+      "tags": [
+        "M10",
+        null,
+        "C0",
+        "C0"
+      ]
     }
   },
   "sets": {
@@ -479,7 +675,18 @@
       "Q18",
       "Q20"
     ],
-    "C_retention": []
+    "C_retention": [
+      "Q21",
+      "Q22",
+      "Q23",
+      "Q24",
+      "Q25",
+      "Q26",
+      "Q27",
+      "Q28",
+      "Q29",
+      "Q30"
+    ]
   },
   "foundations": {
     "title": "Foundations: describing motion",

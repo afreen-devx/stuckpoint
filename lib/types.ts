@@ -9,10 +9,13 @@ export const LANGUAGES: Language[] = ["en", "te", "hi", "mix", "hinglish"];
 export type StudyGroup = "stuckpoint" | "control";
 
 /** The two tests scored against the fixed answer key. */
-export type TestPhase = "pretest" | "posttest";
+export type TestPhase = "pretest" | "posttest" | "retention";
 
 /** Where a session is in the five step flow. */
 export type Phase = TestPhase | "diagnosis" | "tutor" | "mastery" | "results";
+
+/** The three tests, in the order a student takes them. The retention test comes 3 to 4 days later. */
+export const TEST_LABEL: Record<TestPhase, string> = { pretest: "Pre-test", posttest: "Post-test", retention: "Retention test" };
 
 export const LANGUAGE_LABEL: Record<Language, string> = {
   en: "English",

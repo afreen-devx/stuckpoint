@@ -10,6 +10,19 @@ StuckPoint, milestone 3 (tutoring) and the Lab amber redesign. Updated 26 Nov 20
 - **New design ("Lab amber")** on every page: Anek type (one family for English, Telugu and Hindi),
   JetBrains Mono numbers, the motion lab, the misconception map, the big results score.
 
+## Finishing pass (28 Nov)
+
+- **Retention test:** set C (Q21 to Q30) in KIN-02, computed and checked like the others. Results offer
+  "Take the retention test"; a returning student enters their student ID on the start page
+  (`GET /api/sessions?studentId=`), which opens their latest finished session. Results then show
+  pre → post → retention.
+- **Teacher view:** `/teacher`, behind `TEACHER_PIN` (cookie holds a hash, 12 hours). Group comparison
+  (StuckPoint vs ChatGPT Study Mode): mean pre, post, gain, retention, misconceptions fixed; every session;
+  AI health (failures, timeouts, rate limits, typical reply time). Class exports:
+  `/api/teacher/export?kind=sessions` and `?kind=answers`.
+- **AI check:** `npm run ai:check` runs one real diagnosis call and one streamed tutor reply with your
+  `.env`, prints timings, never prints the key.
+
 ## Harder questions (KIN-02)
 
 - Student feedback: questions were too basic and had too few numbers. `packs/KIN-02.json` replaces

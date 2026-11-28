@@ -34,6 +34,11 @@ The tables are created automatically on the first request.
 
 Every push to `main` on GitHub redeploys the site automatically.
 
+## After deploying
+
+- Open `/teacher` on the live link and enter `TEACHER_PIN` to see the class results and download them.
+- Students coming back for the retention test enter their student ID on the start page.
+
 ## Changing a setting later
 
 Change it in Vercel (project settings, environment variables), then redeploy from the Deployments tab.

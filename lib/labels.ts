@@ -16,5 +16,6 @@ export function questionLabel(pack: Pack, qid: string): string {
 export function questionLabelWithTest(pack: Pack, qid: string): string {
   if (pack.sets.A_pre.includes(qid)) return `Pre ${questionLabel(pack, qid)}`;
   if (pack.sets.B_post.includes(qid)) return `Post ${questionLabel(pack, qid)}`;
+  if (pack.sets.C_retention.includes(qid)) return `Retention ${questionLabel(pack, qid)}`;
   return questionLabel(pack, qid);
 }

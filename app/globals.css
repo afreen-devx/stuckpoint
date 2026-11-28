@@ -2134,3 +2134,84 @@ button:disabled {
 .option[data-mark] .option-indicator {
   display: none;
 }
+
+/* Retention lookup on the setup page ------------------------------------------- */
+
+.return {
+  max-width: 560px;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.delta-n.is-ret {
+  color: var(--data);
+}
+
+/* Teacher view ----------------------------------------------------------------- */
+
+.t-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  margin-top: 40px;
+}
+
+.t-group {
+  padding-top: 16px;
+  border-top: 3px solid var(--accent);
+}
+
+.t-group[data-group="control"] {
+  border-top-color: var(--data);
+}
+
+.t-group[data-group="control"] .dx-flag {
+  color: var(--data);
+}
+
+.t-group .dx-flag {
+  color: var(--accent);
+}
+
+.t-group .delta-n {
+  font-size: clamp(64px, 8vw, 112px);
+}
+
+.t-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 22px 0 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.t-stats div {
+  padding: 10px 12px 0 0;
+}
+
+.t-stats dt {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.t-stats dd {
+  margin: 4px 0 0;
+  font-family: var(--mono);
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.result-table td .flag-q {
+  display: block;
+  font-family: var(--mono);
+  font-weight: 400;
+}
+
+@media (max-width: 700px) {
+  .t-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

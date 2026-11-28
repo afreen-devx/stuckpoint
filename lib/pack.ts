@@ -196,6 +196,11 @@ export function setQuestions(pack: Pack, name: "A_pre" | "B_post" | "C_retention
   return pack.sets[name];
 }
 
+/** The question set for one test: A for the pre-test, B for the post-test, C for the retention test. */
+export function testSet(pack: Pack, phase: "pretest" | "posttest" | "retention"): string[] {
+  return phase === "pretest" ? pack.sets.A_pre : phase === "posttest" ? pack.sets.B_post : pack.sets.C_retention;
+}
+
 /** True when the retention set can be used: exactly the ten questions the flow expects. */
 export function retentionAvailable(pack: Pack): boolean {
   return pack.sets.C_retention.length === 10;

@@ -11,7 +11,9 @@ const ALLOWED: Record<Phase, Phase[]> = {
   tutor: ["mastery", "posttest"],
   mastery: ["tutor", "posttest"],
   posttest: ["results"],
-  results: [],
+  // Results open the retention test, taken 3 to 4 days later; finishing it returns to results.
+  results: ["retention"],
+  retention: ["results"],
 };
 
 export const PHASE_LABEL: Record<Phase, string> = {
@@ -21,6 +23,7 @@ export const PHASE_LABEL: Record<Phase, string> = {
   mastery: "Mastery check",
   posttest: "Post-test",
   results: "Results",
+  retention: "Retention test",
 };
 
 export function canMoveTo(from: Phase, to: Phase): boolean {

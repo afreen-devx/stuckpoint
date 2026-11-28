@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "pack:check": "node --experimental-strip-types scripts/check-pack.ts"
+    "pack:check": "node --experimental-strip-types scripts/check-pack.ts",
+    "ai:check": "node --env-file=.env --experimental-strip-types --import ./scripts/ts-imports.mjs scripts/ai-check.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",

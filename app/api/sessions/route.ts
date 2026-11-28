@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createSession, getAnswers, getSession, setPhase } from "@/lib/db";
-import { loadPack } from "@/lib/pack";
+import { createSession, getAnswers, getSession, latestSessionFor, setPhase } from "@/lib/db";
+import { loadPack, retentionAvailable, testSet } from "@/lib/pack";
 import { canMoveTo } from "@/lib/session";
 import type { StudyGroup } from "@/lib/types";
 
@@ -19,7 +19,7 @@ const CreateBody = z.object({
 
 const MoveBody = z.object({
   id: z.string().uuid(),
-  phase: z.enum(["pretest", "diagnosis", "tutor", "mastery", "posttest", "results"]),
+  phase: z.enum(["pretest", "diagnosis", "tutor", "mastery", "posttest", "results", "retention"]),
 });
 
 function bad(message: string, status = 400) {
@@ -63,10 +63,14 @@ export async function PATCH(request: Request) {
     return bad(`You cannot go from ${session.phase} to ${to}.`, 409);
   }
 
+  const pack = loadPack();
+  if (to === "retention" && !retentionAvailable(pack)) {
+    return bad("The retention test is not available yet.", 409);
+  }
+
   // Leaving a test requires every question in its set to be answered.
-  if (session.phase === "pretest" || session.phase === "posttest") {
-    const pack = loadPack();
-    const set = session.phase === "pretest" ? pack.sets.A_pre : pack.sets.B_post;
+  if (session.phase === "pretest" || session.phase === "posttest" || session.phase === "retention") {
+    const set = testSet(pack, session.phase);
     const answered = new Set(
       (await getAnswers(session.id, session.phase))
         .filter((a) => a.choice !== null)
@@ -80,4 +84,16 @@ export async function PATCH(request: Request) {
 
   await setPhase(session.id, to);
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * Find a returning student's session by their anonymous ID, for the retention test:
+ * GET /api/sessions?studentId=S382. Returns the latest session that has reached the results.
+ */
+export async function GET(request: Request) {
+  const studentId = new URL(request.url).searchParams.get("studentId")?.trim().toUpperCase() ?? "";
+  if (!/^[A-Z0-9]{2,8}$/.test(studentId)) return bad("Enter the student ID you used before.");
+  const session = await latestSessionFor(studentId);
+  if (!session) return bad("No finished session found for that ID. Check it and try again.", 404);
+  return NextResponse.json({ id: session.id, phase: session.phase });
 }

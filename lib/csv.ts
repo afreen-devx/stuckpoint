@@ -61,19 +61,21 @@ export async function buildSessionLog(sessionId: string): Promise<Record<string,
       guess: answer.guess,
     });
   }
-  for (const answer of await getAnswers(sessionId, "posttest")) {
-    rows.push({
-      record: "answer",
-      at: answer.created_at,
-      phase: "posttest",
-      qid: answer.qid,
-      choice: answer.choice,
-      correct: answer.correct,
-      option_tag: answer.option_tag,
-      reason: "",
-      time_ms: answer.time_ms,
-      guess: answer.guess,
-    });
+  for (const phase of ["posttest", "retention"] as const) {
+    for (const answer of await getAnswers(sessionId, phase)) {
+      rows.push({
+        record: "answer",
+        at: answer.created_at,
+        phase,
+        qid: answer.qid,
+        choice: answer.choice,
+        correct: answer.correct,
+        option_tag: answer.option_tag,
+        reason: "",
+        time_ms: answer.time_ms,
+        guess: answer.guess,
+      });
+    }
   }
   for (const diagnosis of await getDiagnoses(sessionId)) {
     rows.push({

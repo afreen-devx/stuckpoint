@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import type { SavedAnswer, TestQuestion } from "@/components/TestRunner";
 import { getAnswers, getSession, type SessionRow } from "./db";
-import { loadPack } from "./pack";
+import { loadPack, testSet } from "./pack";
 import { phaseHref } from "./session";
 import type { TestPhase } from "./types";
 
@@ -19,7 +19,7 @@ export async function loadTestPage(
   if (session.phase !== phase) redirect(phaseHref(session.id, session.phase));
 
   const pack = loadPack();
-  const set = phase === "pretest" ? pack.sets.A_pre : pack.sets.B_post;
+  const set = testSet(pack, phase);
   const questions: TestQuestion[] = set.map((qid) => {
     const q = pack.questions[qid];
     return {

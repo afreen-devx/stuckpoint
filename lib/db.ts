@@ -271,6 +271,15 @@ export async function getSession(id: string): Promise<SessionRow | null> {
   return rows[0] ?? null;
 }
 
+/** The newest session for a student ID that has finished the post-test (for the retention test). */
+export async function latestSessionFor(studentId: string): Promise<SessionRow | null> {
+  const rows = await all<SessionRow>(
+    "SELECT * FROM sessions WHERE student_id = ? AND phase IN ('results', 'retention') ORDER BY created_at DESC LIMIT 1",
+    studentId,
+  );
+  return rows[0] ?? null;
+}
+
 export async function setPhase(id: string, phase: Phase): Promise<void> {
   await run({ sql: "UPDATE sessions SET phase = ? WHERE id = ?", args: [phase, id] });
 }
@@ -492,4 +501,31 @@ export async function saveMasteryCheck(input: {
       },
     ),
   );
+}
+
+/* ---------- Teacher view ---------- */
+
+export async function allSessions(): Promise<SessionRow[]> {
+  return all<SessionRow>("SELECT * FROM sessions ORDER BY created_at DESC");
+}
+
+export async function allAnswers(): Promise<AnswerRow[]> {
+  return all<AnswerRow>("SELECT * FROM answers ORDER BY session_id, phase, id");
+}
+
+export async function allMasteryChecks(): Promise<(MasteryCheckRow & { session_id: string })[]> {
+  return all<MasteryCheckRow & { session_id: string }>("SELECT * FROM mastery_checks");
+}
+
+export type LlmCallRow = {
+  session_id: string;
+  purpose: string;
+  model: string;
+  latency_ms: number;
+  ok: number;
+  error_code: string | null;
+};
+
+export async function allLlmCalls(): Promise<LlmCallRow[]> {
+  return all<LlmCallRow>("SELECT session_id, purpose, model, latency_ms, ok, error_code FROM llm_calls");
 }
